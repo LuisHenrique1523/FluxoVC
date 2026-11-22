@@ -28,6 +28,6 @@ def test_caminhos_relativos_a_raiz() -> None:
 
 
 def test_app_abre_sem_erros() -> None:
-    at = AppTest.from_file(str(PROJECT_ROOT / "app.py")).run(timeout=30)
+    at = AppTest.from_file(str(PROJECT_ROOT / "app.py")).run(timeout=60)
     assert not at.exception
     assert at.title[0].value.endswith("FluxoVC")

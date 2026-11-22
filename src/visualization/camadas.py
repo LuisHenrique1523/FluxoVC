@@ -136,6 +136,16 @@ def desenhar_roi(imagem: np.ndarray, poligono_px: np.ndarray, escala: float, opa
     cv2.polylines(imagem, [pontos], True, COR_ROI, espessura(imagem.shape[1]), cv2.LINE_AA)
 
 
+def desenhar_calibracao(imagem: np.ndarray, pontos_px: np.ndarray, escala: float) -> None:
+    """Quadrilátero da calibração (velocidade) com os pontos numerados 1–4 (prévia)."""
+    cor = (255, 0, 255)  # magenta
+    pontos = _inteiros(pontos_px, escala)
+    cv2.polylines(imagem, [pontos.reshape(-1, 1, 2)], True, cor, espessura(imagem.shape[1]), cv2.LINE_AA)
+    for i, (x, y) in enumerate(pontos, start=1):
+        cv2.circle(imagem, (int(x), int(y)), espessura(imagem.shape[1]) + 3, cor, -1, cv2.LINE_AA)
+        escrever(imagem, str(i), (int(x) + 8, int(y) - 6), 0.5, BRANCO, fundo=cor)
+
+
 # ---------------------------------------------------------------------------
 # Painel HUD
 # ---------------------------------------------------------------------------

@@ -1,0 +1,12 @@
+# Configuração do Streamlit para o FluxoVC
+[browser]
+# Não envia estatísticas de uso para fora da máquina (privacidade).
+gatherUsageStats = false
+
+[server]
+# Limite de upload em MB (o mesmo de AquisicaoConfig.tamanho_max_mb).
+maxUploadSize = 200
+
+[runner]
+# Ao mudar um parâmetro, interrompe o frame atual e reaplica a configuração.
+fastReruns = true

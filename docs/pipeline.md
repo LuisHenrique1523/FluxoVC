@@ -1,6 +1,6 @@
 # Pipeline do FluxoVC
 
-> Documento construído ao longo das fases. Seções marcadas com 🚧 serão completadas nas fases seguintes.
+> Documento construído ao longo das fases do projeto.
 
 ```mermaid
 flowchart LR
@@ -10,7 +10,7 @@ flowchart LR
     D --> E[Letterbox inverso<br/>modelo → original]
     E --> F[Trajetórias EMA · contagem · velocidade]
     F --> G[Camadas gráficas]
-    G --> H[Interface Streamlit 🚧]
+    G --> H[Interface Streamlit]
 ```
 
 ## 1. Aquisição e validação — `src/acquisition/`
@@ -245,4 +245,57 @@ num movimento horizontal, a borda inferior da caixa esconderia a trajetória.
 original, a entrada do modelo (640×640, com letterbox, ROI e demais filtros) e o resultado com as
 camadas. Assim dá para ver o efeito de cada toggle de pré-processamento.
 
-## 6. Interface Streamlit 🚧
+## 6. Interface Streamlit — `app.py` e `src/aplicacao/`
+
+`app.py` contém **só a interface**. A lógica fica em `src/aplicacao/`:
+
+- `SessaoAnalise` liga fonte → analisador → compositor → gravador e processa um frame por chamada
+  de `passo()`. A sessão fica no `st.session_state`; assim o laço pode ser interrompido (botão Parar
+  ou mudança de parâmetro) e retomado sem perder trajetórias nem contagens.
+- `relatorios.py` gera as tabelas: eventos, resumo por classe e sentido, série acumulada para o
+  gráfico e CSV no padrão brasileiro (`;` e vírgula decimal, UTF-8 com BOM, que abre direto no Excel).
+
+### 6.1 Barra lateral
+
+| Grupo | Controles |
+|---|---|
+| Fonte | vídeo de demonstração (`data_samples/`), upload (mp4/avi/mov), webcam (índice), URL/câmera IP, imagem única (jpg/png) |
+| Modelo | YOLO11n ou YOLO11s, limiar de confiança, limiar de IoU (NMS); mostra se está em CPU ou GPU |
+| Pré-processamento | toggles de letterbox, ROI, CLAHE (limite e grade) e redução de ruído (filtro e kernel); frame skip. A ajuda de cada toggle vem de `EXPLICACOES` |
+| Linha de contagem | coordenadas normalizadas de A e B; ponto do veículo (base ou centro) |
+| ROI | tabela editável de pontos (adicionar e remover linhas) |
+| Calibração | 4 pontos da pista, largura e comprimento reais (m), α da EMA |
+| Camadas | 7 toggles, opacidade do mapa de calor e da ROI, colormap TURBO ou JET |
+
+**Ao vivo × na próxima análise:** confiança, IoU, pré-processamento e camadas mudam **durante** a
+análise; o detector e o compositor leem a configuração a cada frame. Linha, ROI, calibração e α
+ficam bloqueados enquanto a análise roda e valem a partir da próxima, para uma mesma contagem não
+misturar geometrias diferentes (`config_da_sessao`).
+
+### 6.2 Área principal
+
+- **Antes de analisar:** prévia do primeiro frame com a ROI, a linha (lados A e B) e o
+  quadrilátero de calibração numerado de 1 a 4. Erros de configuração (ROI com menos de 3 pontos,
+  linha degenerada) e avisos (homografia inválida → sem velocidade) aparecem antes de começar.
+- **Durante:** barra de progresso, métricas (total, por sentido, FPS e latência), vídeo processado
+  quadro a quadro (em JPEG, mais rápido que PNG) e alerta de "nenhum veículo detectado". A cada 10
+  frames, ou quando alguém cruza a linha, também são atualizados o gráfico de contagem acumulada, a
+  tabela de eventos e a comparação original × pré-processado × resultado.
+- **Depois:** resumo por classe e sentido, FPS médio, tempo médio por etapa (ms) e downloads:
+  eventos (CSV), resumo (CSV) e vídeo processado (MP4). O vídeo é gravado em H.264 (`avc1`) quando o
+  OpenCV da máquina permite, e aí também pode ser assistido no navegador; senão, em `mp4v`, que
+  serve só para download.
+- **Imagem única:** comparação nas três colunas, contagem por classe, tabela de detecções e download
+  da imagem anotada (PNG) e do CSV.
+
+### 6.3 Detalhes de implementação
+
+- **Detector reaproveitado:** carregar o YOLO é caro. O detector fica guardado na sessão do
+  navegador, um por modelo, e é reiniciado (ByteTrack zerado) a cada nova análise.
+- **Atualização da barra lateral:** depois de iniciar e ao terminar a análise, `st.rerun()`
+  redesenha a barra lateral. Sem isso, o botão Parar apareceria desabilitado durante a análise,
+  porque a barra lateral é desenhada antes de a análise começar.
+- **Privacidade:** `.streamlit/config.toml` desliga o envio de estatísticas de uso do Streamlit.
+- **Testes:** `tests/test_aplicacao.py` roda o `app.py` real com o `AppTest` do Streamlit. O
+  vídeo sintético entra como vídeo de demonstração e o detector falso é injetado na sessão; o teste
+  ajusta a linha, clica em Analisar e confere a contagem nas métricas da página.

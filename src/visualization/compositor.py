@@ -74,8 +74,6 @@ class CompositorCamadas:
         self.birdseye = self._birdseye()
 
     def _roi(self) -> np.ndarray | None:
-        if not self.cfg.preproc.usar_roi:
-            return None
         try:
             return roi_em_pixels(self.cfg.geometria.roi, self.largura, self.altura)
         except ErroGeometria:
@@ -121,7 +119,7 @@ class CompositorCamadas:
 
         if vis.mostrar_heatmap:
             self.mapa_calor.sobrepor(saida, vis.opacidade_heatmap, vis.colormap)
-        if vis.mostrar_roi and self.roi_px is not None:
+        if vis.mostrar_roi and self.cfg.preproc.usar_roi and self.roi_px is not None:
             desenhar_roi(saida, self.roi_px, self.escala, vis.opacidade_roi)
         if vis.mostrar_linha:
             p1, p2 = (contador.p1, contador.p2) if contador else self.linha_px

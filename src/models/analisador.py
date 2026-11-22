@@ -21,7 +21,7 @@ import numpy as np
 from src.acquisition.fontes import Frame
 from src.config import CLASSES_VEICULO, AppConfig
 from src.geometry.coordenadas import caixas_modelo_para_original, normalizados_para_pixels
-from src.geometry.erros import HomografiaInvalidaError
+from src.geometry.erros import HomografiaInvalidaError, RoiInvalidaError
 from src.geometry.homografia import calcular_homografia
 from src.geometry.roi import ponto_na_roi, roi_em_pixels
 from src.models.contagem import ContadorLinha, EventoCruzamento
@@ -128,9 +128,7 @@ class AnalisadorFluxo:
 
         linha = normalizados_para_pixels([cfg.contagem.linha_p1, cfg.contagem.linha_p2], largura, altura)
         self.contador = ContadorLinha(linha[0], linha[1])
-        self.roi_px = (
-            roi_em_pixels(cfg.geometria.roi, largura, altura) if cfg.preproc.usar_roi else None
-        )
+        self.roi_px = self._roi_px()
         self.homografia, self.area_calibrada_px = self._calibrar()
         self.historico = HistoricoTrajetorias(
             alpha=cfg.geometria.ema_alpha,
@@ -144,6 +142,24 @@ class AnalisadorFluxo:
         self.frames_com_deteccao = 0
         self._ultimo: ResultadoFrame | None = None
         detector.reiniciar()
+
+    def _roi_px(self) -> np.ndarray | None:
+        """Polígono da ROI em pixels. Só é obrigatório ser válido se a ROI estiver ligada.
+
+        É calculado mesmo com a ROI desligada para que o toggle possa ser ligado
+        e desligado durante a análise (a interface aplica os toggles ao vivo).
+        """
+        try:
+            return roi_em_pixels(self.cfg.geometria.roi, self.largura, self.altura)
+        except RoiInvalidaError:
+            if self.cfg.preproc.usar_roi:
+                raise
+            return None
+
+    @property
+    def roi_ativa(self) -> np.ndarray | None:
+        """ROI em uso neste frame (respeita o toggle atual)."""
+        return self.roi_px if self.cfg.preproc.usar_roi else None
 
     def _calibrar(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Calcula a homografia; se for inválida, desativa só a velocidade e avisa."""
@@ -167,7 +183,8 @@ class AnalisadorFluxo:
 
         tempos: dict[str, float] = {}
         inicio = time.perf_counter()
-        preproc = preprocessar(frame.imagem, self.cfg.preproc, self.cfg.geometria.roi)
+        roi_norm = self.cfg.geometria.roi if self.roi_px is not None else None
+        preproc = preprocessar(frame.imagem, self.cfg.preproc, roi_norm)
         tempos["preprocessamento"] = (time.perf_counter() - inicio) * 1000
 
         inicio = time.perf_counter()
@@ -192,7 +209,7 @@ class AnalisadorFluxo:
         veiculos: list[VeiculoRastreado] = []
         eventos: list[EventoCruzamento] = []
         validas = interpretar_deteccoes(
-            brutas, preproc, self.cfg.modelo.confianca, self.roi_px, self.cfg.contagem.ponto_referencia
+            brutas, preproc, self.cfg.modelo.confianca, self.roi_ativa, self.cfg.contagem.ponto_referencia
         )
         for det, caixa, ponto in validas:
             if det.id_rastreio is None:  # ainda não confirmado pelo rastreador
