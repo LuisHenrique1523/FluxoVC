@@ -9,7 +9,7 @@ flowchart LR
     C --> D[YOLO + ByteTrack]
     D --> E[Letterbox inverso<br/>modelo → original]
     E --> F[Trajetórias EMA · contagem · velocidade]
-    F --> G[Camadas gráficas 🚧]
+    F --> G[Camadas gráficas]
     G --> H[Interface Streamlit 🚧]
 ```
 
@@ -199,4 +199,50 @@ CPU, yolo11n, frame 1400×1080: cerca de 14 ms de pré-processamento, 127 ms de 
 menos de 1 ms de interpretação por frame, ou seja, uns 7 FPS. A comparação completa (n × s,
 com e sem frame skip) será feita na Fase 6.
 
-## 5. Camadas gráficas 🚧
+## 5. Camadas gráficas — `src/visualization/`
+
+`CompositorCamadas.compor()` monta o frame exibido. Primeiro o frame original é **reduzido para a
+largura de exibição** (960 px por padrão): desenhar depois de reduzir é mais barato e mantém a
+espessura do traço constante na tela. Todas as coordenadas (que estão no espaço original) passam
+por `original_para_exibicao`, a última etapa do mapeamento modelo → original → interface.
+
+Ordem das camadas, de baixo para cima (cada uma liga e desliga em `VisualizacaoConfig`):
+
+| # | Camada | Técnica |
+|---|---|---|
+| 1 | Mapa de calor | grade de ocupação acumulada → `applyColorMap` (TURBO/JET) → `addWeighted` só onde há calor |
+| 2 | ROI | polígono preenchido com transparência (`addWeighted` + máscara) e contorno |
+| 3 | Linha de contagem | `cv2.line` com marcação dos lados A e B; pisca em verde e engrossa por 12 frames após um cruzamento |
+| 4 | Caixas | cor por classe e rótulo com classe, ID, confiança e km/h |
+| 5 | Trajetórias | polilinha suavizada (EMA) com cor por ID; o traço afina em direção ao passado |
+| 6 | Bird's-eye | `warpPerspective` do trecho calibrado em miniatura, com veículos e régua de 5 m |
+| 7 | Painel HUD | contagem por classe e sentido, FPS e latência, em fundo semitransparente |
+
+As trajetórias ficam acima das caixas porque o ponto de referência é o centro da base da caixa:
+num movimento horizontal, a borda inferior da caixa esconderia a trajetória.
+
+**Detalhes:**
+
+- **Cor por ID:** a matiz avança pela razão áurea (`h = id · 0,618 mod 1`). Assim, IDs vizinhos
+  recebem cores bem diferentes, e cada ID mantém a mesma cor em todos os frames.
+- **Mapa de calor:** a cada frame processado, soma +1 na **pegada** de cada veículo (terço inferior
+  da caixa, a parte que toca o asfalto), numa grade de 1/4 da resolução. Antes de colorir, a grade
+  é normalizada pela raiz quadrada (`√(v/máx)`), para realçar as faixas pouco usadas, e suavizada
+  com um filtro gaussiano. O mapa acumula mesmo com a camada desligada; ao ligá-la, o histórico já
+  aparece.
+- **Texto sem acento no vídeo:** `cv2.putText` usa fontes Hershey, que só têm ASCII. Desenhar com
+  Pillow exigiria converter o frame inteiro a cada quadro, então o texto **sobre o vídeo** é escrito
+  sem acentos (`texto_ascii`). A interface mantém a acentuação.
+- **HUD alinhado:** como a fonte não é monoespaçada, cada célula da tabela é escrita numa coluna de
+  `x` fixo, calculado com `cv2.getTextSize`.
+- **Desempenho:** a transparência com máscara usa `cv2.copyTo`, cerca de 10× mais rápido que a
+  indexação booleana do NumPy. Isso baixou o desenho de 37 para 22 ms por frame (1600×1080 com 10
+  veículos e todas as camadas), bem abaixo dos ~127 ms da inferência em CPU.
+
+### 5.1 Comparação original × pré-processado × final
+
+`painel_comparacao()` coloca as três imagens lado a lado, na mesma altura e com títulos: o frame
+original, a entrada do modelo (640×640, com letterbox, ROI e demais filtros) e o resultado com as
+camadas. Assim dá para ver o efeito de cada toggle de pré-processamento.
+
+## 6. Interface Streamlit 🚧

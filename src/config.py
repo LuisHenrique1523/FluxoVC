@@ -127,8 +127,11 @@ class VisualizacaoConfig:
     mostrar_hud: bool = True
     opacidade_heatmap: float = 0.45
     opacidade_roi: float = 0.20
+    colormap: str = "TURBO"             # "TURBO" ou "JET"
     tamanho_trajetoria: int = 40        # nº máximo de pontos guardados por ID
     largura_exibicao: int = 960         # largura do vídeo exibido na interface
+    duracao_piscar_frames: int = 12     # quanto tempo a linha pisca após um cruzamento
+    altura_birdseye: float = 0.40       # altura da miniatura bird's-eye (fração do frame)
 
 
 @dataclass
