@@ -22,6 +22,7 @@ streamlit==1.67.0
 # Métricas e gráficos
 pandas==3.1.1
 matplotlib==3.11.2
+psutil==7.2.2           # memória do processo (métricas de desempenho)
 
 # Configuração (.env, usado só pelo VLM opcional)
 python-dotenv==1.2.4

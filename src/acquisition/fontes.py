@@ -406,3 +406,41 @@ def carregar_imagem(caminho: str | Path, cfg: AquisicaoConfig | None = None) -> 
     caminho = Path(caminho)
     validar_existencia(caminho)
     return decodificar_imagem(caminho.read_bytes(), caminho.name, cfg)
+
+
+def extrair_frames(
+    caminho: str | Path, quantidade: int, pasta_saida: Path, cfg: AquisicaoConfig | None = None
+) -> list[Path]:
+    """Salva ``quantidade`` frames igualmente espaçados do vídeo como JPEG (para anotação).
+
+    Os arquivos se chamam ``<video>_f000123.jpg`` (número do frame), o que
+    permite localizar cada frame anotado no vídeo original.
+
+    Raises:
+        ArquivoInvalidoError: vídeo inválido ou sem total de frames conhecido.
+        ValueError: ``quantidade`` < 1.
+    """
+    if quantidade < 1:
+        raise ValueError("A quantidade de frames deve ser pelo menos 1.")
+    caminho = Path(caminho)
+    salvos: list[Path] = []
+    with abrir_arquivo(caminho, cfg) as fonte:
+        total = fonte.info.total_frames
+        if total is None:
+            raise ArquivoInvalidoError(f"Não foi possível saber quantos frames '{caminho.name}' tem.")
+        alvos = sorted({round(i * (total - 1) / max(1, quantidade - 1)) for i in range(quantidade)})
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        pendentes = iter(alvos)
+        proximo = next(pendentes, None)
+        for frame in fonte:
+            if proximo is None:
+                break
+            if frame.indice == proximo:
+                destino = pasta_saida / f"{_nome_seguro(caminho.name)}_f{frame.indice:06d}.jpg"
+                ok, buffer = cv2.imencode(".jpg", frame.imagem, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                if ok:
+                    destino.write_bytes(buffer.tobytes())
+                    salvos.append(destino)
+                proximo = next(pendentes, None)
+    logger.info("%d frames de '%s' salvos em %s", len(salvos), caminho.name, pasta_saida)
+    return salvos

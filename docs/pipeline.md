@@ -299,3 +299,18 @@ misturar geometrias diferentes (`config_da_sessao`).
 - **Testes:** `tests/test_aplicacao.py` roda o `app.py` real com o `AppTest` do Streamlit. O
   vídeo sintético entra como vídeo de demonstração e o detector falso é injetado na sessão; o teste
   ajusta a linha, clica em Analisar e confere a contagem nas métricas da página.
+
+## 7. Métricas e avaliação — `src/metrics/` e `scripts/`
+
+Ver [metricas.md](metricas.md) para as definições, o preparo da referência manual e o passo a
+passo de anotação. Resultados em [resultados.md](resultados.md), gerado por
+`python scripts/evaluate.py`.
+
+| Módulo | Conteúdo |
+|---|---|
+| `qualidade.py` | IoU, casamento guloso previsão × anotação, precisão/recall/F1, erro de contagem, MAE, estabilidade do rastreamento |
+| `anotacoes.py` | leitura da contagem manual (CSV) e dos rótulos YOLO exportados pelo CVAT ou Label Studio |
+| `desempenho.py` | FPS (EMA), memória (RSS via `psutil`), resumo dos tempos por etapa (média e p95) |
+| `avaliacao.py` | roda um vídeo com uma configuração e avalia a detecção nos frames anotados |
+| `relatorio.py` | tabelas Markdown, gráficos (matplotlib) e o `docs/resultados.md` |
+

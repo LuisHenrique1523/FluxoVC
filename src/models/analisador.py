@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -140,6 +141,8 @@ class AnalisadorFluxo:
         )
         self.frames_processados = 0
         self.frames_com_deteccao = 0
+        # nº de frames processados em que cada ID apareceu (estabilidade do rastreamento)
+        self.frames_por_id: Counter[int] = Counter()
         self._ultimo: ResultadoFrame | None = None
         detector.reiniciar()
 
@@ -218,6 +221,7 @@ class AnalisadorFluxo:
             traj = self.historico.atualizar(
                 det.id_rastreio, det.classe, ponto, frame.indice, frame.timestamp_s
             )
+            self.frames_por_id[det.id_rastreio] += 1
             evento = self.contador.atualizar(
                 det.id_rastreio, traj.classe, traj.ponto_atual, frame.indice,
                 frame.timestamp_s, traj.velocidade_kmh,

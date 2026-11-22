@@ -40,7 +40,7 @@ from src.aplicacao.sessao import (
     primeiro_frame,
     validar_configuracao,
 )
-from src.config import AppConfig
+from src.config import AppConfig, config_para_json
 from src.geometry.erros import ErroGeometria
 from src.logs import configurar_logging
 from src.models.analisador import MSG_SEM_DETECCOES
@@ -477,6 +477,12 @@ def main() -> None:
     c1, c2 = st.sidebar.columns(2)
     analisar = c1.button("▶️ Analisar", type="primary", disabled=fonte is None, width="stretch", key="analisar")
     c2.button("⏹️ Parar", on_click=parar, disabled=not ss.rodando, width="stretch", key="parar")
+    nome_config = f"{Path(fonte.nome).stem}.json" if fonte is not None and fonte.tipo == "arquivo" else "fluxovc_config.json"
+    st.sidebar.download_button(
+        "💾 Salvar configuração (JSON)", config_para_json(cfg).encode("utf-8"), nome_config,
+        "application/json", width="stretch", key="salvar_config",
+        help="Para a avaliação (scripts/evaluate.py), salve como data_samples/ground_truth/<nome do vídeo>.json.",
+    )
     if not ss.rodando and (ss.sessao is not None or ss.resultado_imagem is not None):
         st.sidebar.button("🗑️ Limpar resultado", on_click=limpar, width="stretch", key="limpar")
     st.sidebar.caption(f"FluxoVC {__version__} · YOLO11 (Ultralytics, AGPL-3.0) + ByteTrack")

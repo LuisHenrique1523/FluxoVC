@@ -10,7 +10,8 @@ largura/altura do frame), para funcionarem com vídeos de qualquer resolução.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -144,3 +145,69 @@ class AppConfig:
     contagem: ContagemConfig = field(default_factory=ContagemConfig)
     geometria: GeometriaConfig = field(default_factory=GeometriaConfig)
     visualizacao: VisualizacaoConfig = field(default_factory=VisualizacaoConfig)
+
+
+# ---------------------------------------------------------------------------
+# Salvar / carregar a configuração em JSON
+# ---------------------------------------------------------------------------
+def config_para_dict(cfg: AppConfig) -> dict:
+    """Converte a configuração em dicionário (serializável em JSON)."""
+    return asdict(cfg)
+
+
+def _como_padrao(valor: object, padrao: object) -> object:
+    """Converte um valor lido do JSON para o tipo do valor padrão (listas → tuplas etc.)."""
+    if isinstance(padrao, bool):
+        return bool(valor)
+    if isinstance(padrao, int):
+        return int(valor)  # type: ignore[arg-type]
+    if isinstance(padrao, float):
+        return float(valor)  # type: ignore[arg-type]
+    if isinstance(padrao, tuple):
+        return tuple(valor)  # type: ignore[arg-type]
+    if isinstance(padrao, list):
+        return [tuple(v) if isinstance(v, list) else v for v in valor]  # type: ignore[union-attr]
+    return valor
+
+
+def config_de_dict(dados: dict) -> AppConfig:
+    """Monta uma :class:`AppConfig` a partir de um dicionário; campos ausentes ficam no padrão.
+
+    Raises:
+        ValueError: se algum valor não puder ser convertido.
+    """
+    cfg = AppConfig()
+    for grupo in fields(AppConfig):
+        secao = getattr(cfg, grupo.name)
+        valores = dados.get(grupo.name) or {}
+        for campo in fields(secao):
+            if campo.name in valores:
+                try:
+                    convertido = _como_padrao(valores[campo.name], getattr(secao, campo.name))
+                except (TypeError, ValueError) as erro:
+                    raise ValueError(f"Valor inválido em '{grupo.name}.{campo.name}'.") from erro
+                setattr(secao, campo.name, convertido)
+    return cfg
+
+
+def config_para_json(cfg: AppConfig) -> str:
+    """Configuração em JSON legível (UTF-8, indentado)."""
+    return json.dumps(config_para_dict(cfg), ensure_ascii=False, indent=2)
+
+
+def salvar_config(cfg: AppConfig, caminho: Path) -> None:
+    """Grava a configuração em JSON."""
+    caminho.write_text(config_para_json(cfg), encoding="utf-8")
+
+
+def carregar_config(caminho: Path) -> AppConfig:
+    """Lê uma configuração salva pela interface ou escrita à mão.
+
+    Raises:
+        ValueError: JSON malformado ou com valores inválidos.
+    """
+    try:
+        dados = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as erro:
+        raise ValueError(f"'{Path(caminho).name}' não é um JSON válido: {erro}") from erro
+    return config_de_dict(dados)
