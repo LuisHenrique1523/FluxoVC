@@ -21,6 +21,7 @@ DATA_DIR: Path = PROJECT_ROOT / "data_samples"
 GROUND_TRUTH_DIR: Path = DATA_DIR / "ground_truth"
 OUTPUTS_DIR: Path = PROJECT_ROOT / "outputs"
 DOCS_DIR: Path = PROJECT_ROOT / "docs"
+PESOS_DIR: Path = PROJECT_ROOT / "pesos"  # pesos do YOLO baixados (fora do git)
 
 PontoNorm = tuple[float, float]
 
@@ -86,10 +87,15 @@ class ModeloConfig:
 
 @dataclass
 class ContagemConfig:
-    """Linha virtual de contagem (dois pontos normalizados)."""
+    """Linha virtual de contagem (dois pontos normalizados) e rastreamento."""
 
     linha_p1: PontoNorm = (0.05, 0.60)
     linha_p2: PontoNorm = (0.95, 0.60)
+    # Ponto do veículo usado na contagem/velocidade: "base" (centro da base da
+    # caixa = contato com o chão, correto para a homografia) ou "centro".
+    ponto_referencia: str = "base"
+    max_frames_ausente: int = 30        # descarta a trajetória após N frames sem ver o ID
+    janela_velocidade_s: float = 1.0    # intervalo usado na média de velocidade
 
 
 @dataclass

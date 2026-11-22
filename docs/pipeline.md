@@ -6,9 +6,9 @@
 flowchart LR
     A[Aquisição<br/>arquivo · demo · webcam · URL · imagem] --> B[Validação]
     B --> C[Pré-processamento<br/>letterbox → CLAHE → ruído → ROI]
-    C --> D[YOLO + ByteTrack 🚧]
+    C --> D[YOLO + ByteTrack]
     D --> E[Letterbox inverso<br/>modelo → original]
-    E --> F[Trajetórias EMA · contagem · velocidade 🚧]
+    E --> F[Trajetórias EMA · contagem · velocidade]
     F --> G[Camadas gráficas 🚧]
     G --> H[Interface Streamlit 🚧]
 ```
@@ -135,6 +135,68 @@ da base da caixa (contato com o chão), não o centro da caixa.
 ponto bruto; próximo de 0 suaviza mais, mas atrasa a trajetória. Nos testes, α = 0,3 reduz o
 tremor vertical de uma trajetória ruidosa em mais de 50%.
 
-## 4. Detecção, rastreamento e contagem 🚧
+## 4. Detecção, rastreamento e contagem — `src/models/`
+
+### 4.1 Detector (`detector_yolo.py`)
+
+`DetectorYOLO` envolve o YOLO11 (Ultralytics, AGPL-3.0, pesos pré-treinados no COCO) com o
+rastreador **ByteTrack** embutido: `model.track(imagem, persist=True, tracker="bytetrack.yaml")`.
+
+- Filtra só as classes de veículo do COCO: carro (2), moto (3), ônibus (5) e caminhão (7). Pessoas
+  nunca são processadas.
+- Recebe a imagem já pré-processada (640×640). Como ela já tem o tamanho de entrada, o letterbox
+  interno do Ultralytics não muda nada, e as caixas voltam no mesmo espaço que enviamos.
+- Confiança e IoU/NMS são lidos da configuração a cada frame: a interface muda esses valores sem
+  recarregar o modelo.
+- Usa GPU (CUDA) se houver, senão CPU. Os pesos são baixados para `pesos/`, que fica fora do git.
+  Sem internet, a mensagem indica o link para download manual.
+- `reiniciar()` zera o ByteTrack ao trocar de vídeo, para os IDs recomeçarem em 1.
+
+O analisador depende só do contrato `Detector` (`tipos.py`). Os testes injetam detectores falsos
+e rodam a pipeline inteira sem baixar pesos.
+
+### 4.2 Interpretação das saídas (`analisador.py`)
+
+Para cada frame processado:
+
+1. **Letterbox inverso:** as caixas saem do espaço 640×640 e voltam ao frame original (§3.1).
+   Caixas inteiras dentro da faixa cinza são descartadas.
+2. **Filtros:** classe de veículo, confiança mínima e ROI. A ROI é testada pelo ponto de
+   referência do veículo com `cv2.pointPolygonTest`.
+3. **Ponto de referência:** por padrão, o **centro da base da caixa**, que é o contato com o chão.
+   Esse é o ponto correto para a homografia, que só vale no plano da pista. Pode ser trocado para
+   o centro da caixa.
+4. **Histórico por ID** (`rastreamento.py`): guarda as últimas posições suavizadas por EMA, os
+   votos de classe e a velocidade. A classe exibida é a mais votada, porque o detector às vezes
+   alterna entre carro e caminhão no mesmo veículo. IDs não vistos por 30 frames são descartados.
+5. **Velocidade:** a posição suavizada vai para metros pela homografia. A velocidade é a média na
+   última janela de 1 s, medida só dentro do quadrilátero calibrado, já que fora dele a homografia
+   extrapola. Homografia inválida desativa só a velocidade, com aviso; a contagem continua.
+6. **Contagem:** cruzamento da linha virtual (§4.3).
+
+O tempo de cada etapa (pré-processamento, inferência e interpretação) é medido em todo frame.
+Com `frame_skip`, os frames pulados repetem os veículos do último frame processado.
+
+### 4.3 Cruzamento da linha (`contagem.py`)
+
+Para a linha de `A` até `B`, o produto vetorial `lado(P) = (B − A) × (P − A)` é positivo de um lado,
+negativo do outro e zero sobre a linha. Um ID é contado quando:
+
+- o sinal muda entre a última posição **fora da linha** e a atual (parar sobre a linha não decide
+  nada); e
+- o deslocamento corta o **segmento** AB, e não apenas o prolongamento da reta. O teste é feito
+  com o mesmo produto vetorial, invertendo os papéis.
+
+Cada ID é contado **uma única vez**, então o tremor da caixa sobre a linha não duplica a contagem.
+Sentido **A→B** = do lado negativo para o positivo; **B→A** = o contrário. Numa linha horizontal
+desenhada da esquerda para a direita, A→B é de cima para baixo.
+
+Cada evento registra: ID, classe, sentido, frame, instante (s) e velocidade (km/h).
+
+### 4.4 Desempenho medido (prévia)
+
+CPU, yolo11n, frame 1400×1080: cerca de 14 ms de pré-processamento, 127 ms de inferência e
+menos de 1 ms de interpretação por frame, ou seja, uns 7 FPS. A comparação completa (n × s,
+com e sem frame skip) será feita na Fase 6.
 
 ## 5. Camadas gráficas 🚧
