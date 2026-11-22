@@ -1,0 +1,30 @@
+# FluxoVC — dependências (testado com Python 3.12.10 no Windows 10, CPU)
+# Instalação: python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt
+
+# Visão computacional e imagem
+opencv-python==5.1.0.95
+numpy==2.5.5
+pillow==13.0.0
+
+# Detecção + rastreamento (YOLO + ByteTrack). Licença AGPL-3.0.
+# Os pesos (.pt) são baixados automaticamente na primeira execução e não são versionados.
+ultralytics==8.4.216
+lap==0.5.14
+
+# PyTorch: a versão padrão do PyPI no Windows é só CPU.
+# Para usar GPU NVIDIA, instale a variante CUDA seguindo https://pytorch.org/get-started/locally/
+torch==2.15.0
+torchvision==0.29.2
+
+# Interface
+streamlit==1.67.0
+
+# Métricas e gráficos
+pandas==3.1.1
+matplotlib==3.11.2
+
+# Configuração (.env, usado só pelo VLM opcional)
+python-dotenv==1.2.4
+
+# Testes
+pytest==9.2.0

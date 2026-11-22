@@ -1,0 +1,36 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Pesos de modelo (baixados automaticamente)
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# Saídas geradas
+outputs/*
+!outputs/.gitkeep
+runs/
+
+# Segredos
+.env
+.streamlit/secrets.toml
+
+# Sistema operacional / OneDrive
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
