@@ -61,6 +61,7 @@ class PreprocConfig:
     """Operações de pré-processamento (cada uma pode ser ligada/desligada)."""
 
     tamanho_entrada: int = 640          # lado do quadrado do letterbox
+    manter_proporcao: bool = True       # False = estica para o quadrado (só p/ comparação)
     usar_roi: bool = True
     usar_clahe: bool = False
     clahe_clip: float = 2.0
