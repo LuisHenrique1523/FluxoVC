@@ -16,7 +16,7 @@ Veja como ela é gerada em [docs/computacao_grafica.md](docs/computacao_grafica.
 [Problema](#problema) · [Requisitos](#requisitos) · [Instalação](#instalação) ·
 [Execução](#execução) · [Arquitetura](#arquitetura) · [Pré-processamento](#pré-processamento) ·
 [Método visual](#método-visual) · [Parâmetros](#parâmetros-da-interface) ·
-[Métricas](#métricas-e-resultados) · [Acertos e erros](#exemplos-de-acertos-e-erros) ·
+[Métricas](#métricas-e-resultados) · [VLM](#vlm-opcional-descrever-cena) · [Acertos e erros](#exemplos-de-acertos-e-erros) ·
 [Limitações](#limitações-conhecidas) · [Ética](#ética-e-privacidade) ·
 [Créditos](#fontes-créditos-e-licenças) · [Uso de IA](#declaração-de-uso-de-ia) ·
 [Equipe](#contribuição-dos-integrantes)
@@ -69,6 +69,8 @@ equipe:
 | pandas / matplotlib | 3.1.1 / 3.11.2 | tabelas, métricas e gráficos |
 | psutil | 7.2.2 | memória (métricas de desempenho) |
 | python-dotenv | 1.2.4 | `.env` (VLM opcional) |
+| transformers / num2words | 5.24.0 / 0.5.14 | VLM local (SmolVLM), opcional |
+| anthropic | 2.12.0 | VLM pela API do Claude, opcional |
 | pytest | 9.2.0 | testes |
 
 As versões fixadas estão em [requirements.txt](requirements.txt).
@@ -103,10 +105,11 @@ O navegador abre em <http://localhost:8501>. Na barra lateral:
 ### Outros comandos
 
 ```bash
-pytest                                   # 300 testes, nenhum depende de baixar pesos (cerca de 40 s)
+pytest                                   # 354 testes, nenhum depende de baixar pesos (cerca de 1 min)
 python scripts/evaluate.py               # avaliação em lote → docs/resultados.md
 python scripts/extrair_frames.py <vídeo> # frames para anotar (CVAT / Label Studio)
 python scripts/gerar_figuras.py          # figuras de docs/computacao_grafica.md
+python scripts/avaliar_vlm.py --video <vídeo> --frames 3   # 10 casos de teste do VLM
 ```
 
 ## Arquitetura
@@ -162,12 +165,14 @@ FluxoVC/
 │   ├── visualization/          # camadas, mapa de calor, vista de cima, compositor, gravador MP4
 │   ├── metrics/                # qualidade (P/R/F1, erro de contagem, MAE), desempenho, relatório
 │   ├── aplicacao/              # sessão de análise frame a frame e tabelas para a interface
+│   ├── vlm/                    # VLM opcional: anonimização, backends local/Claude, casos de teste
 │   ├── config.py               # todos os parâmetros (dataclasses) + salvar/carregar JSON
 │   └── logs.py                 # logging
 ├── data_samples/               # vídeos curtos + LICENSES.md
 │   └── ground_truth/           # configuração, contagem manual e frames anotados
 ├── docs/                       # pipeline, computação gráfica, métricas, resultados, figuras
-├── scripts/                    # evaluate.py, extrair_frames.py, gerar_figuras.py, cena_sintetica.py
+├── scripts/                    # evaluate.py, extrair_frames.py, gerar_figuras.py, avaliar_vlm.py…
+├── .env.example                # configuração opcional do VLM (o .env não vai para o git)
 ├── tests/                      # pytest (vídeos sintéticos + detectores falsos)
 ├── outputs/                    # vídeos processados (ignorado pelo git)
 ├── pesos/                      # pesos do YOLO baixados (ignorado pelo git)
@@ -182,6 +187,7 @@ FluxoVC/
 | [docs/computacao_grafica.md](docs/computacao_grafica.md) | os 10 requisitos de CG, com código e figuras |
 | [docs/metricas.md](docs/metricas.md) | definição das métricas, como fazer a contagem manual e anotar os frames |
 | [docs/resultados.md](docs/resultados.md) | tabelas e gráficos gerados pelo `evaluate.py` |
+| [docs/vlm.md](docs/vlm.md) | VLM opcional: anonimização, prompts, 10 casos de teste e resultados |
 
 ## Pré-processamento
 
@@ -267,6 +273,25 @@ YOLO11s**.
 `<Equipe: depois de rodar o evaluate.py com o vídeo real, resumir aqui os números principais
 (MAE, F1 e FPS) e o que eles mostram.>`
 
+## VLM opcional: "Descrever cena"
+
+Depois de uma análise, o painel **🤖 Descrever cena com IA** envia o frame a um modelo de visão e
+linguagem, que descreve a cena ou responde a uma pergunta livre. O VLM **complementa** a pipeline:
+a resposta aparece ao lado da contagem da pipeline naquele frame, sempre com o aviso *"Resposta
+gerada por IA, pode conter erros"*.
+
+- **Anonimizado antes de tudo:** o frame é reduzido para 768 px, e pessoas e regiões de placa são
+  pixelizadas.
+- **Local por padrão:** SmolVLM-256M (Hugging Face), cerca de 3 s por resposta em CPU. O frame não
+  sai do computador.
+- **API opcional:** com `FLUXOVC_VLM_BACKEND=claude` e `ANTHROPIC_API_KEY` no `.env` (veja
+  [.env.example](.env.example)). Nenhuma chave fica no código.
+- **10 casos de teste** com respostas verificáveis pela pipeline, classificados em correta,
+  incompleta, incorreta ou alucinada. Primeira rodada com o SmolVLM: 75 % corretas e 20 %
+  alucinadas, como contar "10 veículos" numa foto sem nenhum.
+
+Prompts, regras e resultados em [docs/vlm.md](docs/vlm.md).
+
 ## Exemplos de acertos e erros
 
 **Acertos verificados (cena sintética, em que a resposta certa é conhecida):**
@@ -309,13 +334,15 @@ um.>`
 
 ## Ética e privacidade
 
-- **Foco em veículos:** só as classes carro, moto, ônibus e caminhão são processadas. A classe
-  **pessoa é descartada** já na saída do detector.
+- **Foco em veículos:** a contagem processa só as classes carro, moto, ônibus e caminhão. A classe
+  **pessoa é descartada** já na saída do detector. A única exceção é o VLM opcional: lá, as pessoas
+  são detectadas **só para serem pixelizadas** antes de o frame ser enviado.
 - **Sem placas e sem identificação:** nenhuma placa é lida, recortada ou salva. O sistema não faz
   OCR nem reconhecimento facial.
 - **Dados locais:** a análise roda no computador do usuário. Os vídeos enviados ficam numa pasta
   temporária, e os resultados vão para `outputs/`, fora do git. Nada é enviado para a internet,
-  exceto o download dos pesos na primeira vez.
+  exceto o download dos pesos na primeira vez. A exceção é o backend `claude` do VLM, se a equipe
+  o ativar no `.env`: aí o frame **já anonimizado** vai para a API da Anthropic.
 - **Vídeos de teste:** só com licença livre (Pexels, Pixabay) ou gravados pela equipe em via
   pública, sem pessoas identificáveis nem placas legíveis. Origem e licença em
   [data_samples/LICENSES.md](data_samples/LICENSES.md).
@@ -336,6 +363,11 @@ um.>`
 | matplotlib | Matplotlib License (baseada na PSF) |
 | lap | BSD-2-Clause |
 | pytest | MIT |
+| [SmolVLM-256M-Instruct](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct) (VLM local) | Apache-2.0 (Hugging Face) |
+| transformers | Apache-2.0 |
+| anthropic (SDK da API do Claude) | MIT |
+| num2words | LGPL-2.1 |
+| Fotos de exemplo usadas no teste do VLM (`bus.jpg`, `zidane.jpg`) | repositório do Ultralytics (AGPL-3.0); só a versão anonimizada de `bus.jpg` está em `docs/img/` |
 | Vídeos de amostra | ver [data_samples/LICENSES.md](data_samples/LICENSES.md) |
 
 **Código adaptado:** nenhum trecho foi copiado de terceiros. O letterbox segue a convenção do

@@ -338,3 +338,6 @@ técnico vai para o log do terminal (`logging`). Na interface, erros inesperados
 | Erro inesperado no meio da análise (ex.: falta de memória) | `SessaoAnalise.passo` → `ErroAnalise` | mensagem com o frame do erro; a sessão é encerrada, o vídeo parcial e a contagem ficam disponíveis | `test_erros.py` |
 | Falha ao gravar o MP4 (disco cheio, sem permissão, sem codec) | `SessaoAnalise._gravar` | aviso; a análise continua sem o vídeo | `test_erros.py` |
 | Contagem manual ou anotação YOLO malformada (no `evaluate.py`) | `metrics/anotacoes.py` | aviso no relatório; a parte inválida é ignorada | `test_metricas.py`, `test_avaliacao.py` |
+| VLM: backend `claude` sem `ANTHROPIC_API_KEY`, chave inválida, limite de uso ou sem conexão | `vlm/backends.py` (`ErroVLM`) | mensagem explicando o que configurar; o resto do app segue normal | `test_vlm.py` |
+| VLM: modelo local sem internet na primeira vez | `VLMLocal` | orienta que é preciso baixar ~500 MB para `pesos/hf/` | — |
+| VLM: modelo recusa responder | `VLMClaude.responder` | "(o modelo se recusou a responder)" | `test_vlm.py` |

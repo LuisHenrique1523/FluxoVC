@@ -22,6 +22,7 @@ from src.models.tipos import DeteccaoBruta, ErroModelo, PesosIndisponiveisError
 logger = logging.getLogger(__name__)
 
 URL_PESOS = "https://github.com/ultralytics/assets/releases/download/v8.4.0/{nome}"
+CLASSE_PESSOA = 0  # COCO; usada só para anonimizar o frame enviado ao VLM
 
 
 def escolher_dispositivo(preferencia: str = "auto") -> str:
@@ -129,6 +130,18 @@ class DetectorYOLO:
     def detectar(self, imagem: np.ndarray) -> list[DeteccaoBruta]:
         """Só detecta (sem IDs) — usado na análise de imagem única."""
         return converter_resultado(self._modelo.predict(imagem, **self._argumentos())[0])
+
+    def detectar_pessoas(self, imagem_original: np.ndarray, confianca: float = 0.25) -> list[tuple[float, float, float, float]]:
+        """Caixas de **pessoas** no frame original — usadas só para anonimizar antes do VLM.
+
+        A pipeline de contagem nunca usa a classe pessoa. Aqui o próprio
+        Ultralytics faz o letterbox e devolve as caixas no espaço do original.
+        """
+        resultado = self._modelo.predict(
+            imagem_original, conf=confianca, classes=[CLASSE_PESSOA], imgsz=self.tamanho_entrada,
+            device=self.dispositivo, verbose=False,
+        )[0]
+        return [d.caixa for d in converter_resultado(resultado)]
 
     def reiniciar(self) -> None:
         """Zera o ByteTrack para começar um vídeo novo com IDs a partir de 1."""

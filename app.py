@@ -49,6 +49,8 @@ from src.models.contagem import SENTIDO_AB, SENTIDO_BA
 from src.models.detector_yolo import DetectorYOLO, escolher_dispositivo
 from src.models.tipos import Detector, ErroModelo
 from src.preprocessing.pipeline import EXPLICACOES
+from src.vlm.backends import AVISO_IA, ConfigVLM, ErroVLM, criar_vlm
+from src.vlm.servico import descrever, preparar_frame
 
 configurar_logging()
 logger = logging.getLogger("fluxovc.app")
@@ -83,6 +85,8 @@ def estado() -> Any:
     ss.setdefault("rodando", False)
     ss.setdefault("resultado_imagem", None)
     ss.setdefault("uploads", {})
+    ss.setdefault("vlm", None)
+    ss.setdefault("vlm_resultado", None)
     return ss
 
 
@@ -91,6 +95,7 @@ def limpar() -> None:
     parar()
     ss.sessao = None
     ss.resultado_imagem = None
+    ss.vlm_resultado = None
 
 
 def parar() -> None:
@@ -275,6 +280,7 @@ def iniciar_analise(fonte: FonteEscolhida, cfg: AppConfig) -> None:
     parar()
     ss.sessao = None
     ss.resultado_imagem = None
+    ss.vlm_resultado = None
     try:
         detector = obter_detector(cfg)
         if fonte.tipo == "imagem":
@@ -386,6 +392,9 @@ def tela_video(sessao: SessaoAnalise) -> None:
 
     if not ss.rodando:
         resultados_finais(sessao)
+        if sessao.ultimo_passo is not None:
+            passo = sessao.ultimo_passo
+            painel_vlm(passo.frame.imagem, passo.resultado.veiculos, ss.cfg)
 
 
 def resultados_finais(sessao: SessaoAnalise) -> None:
@@ -442,6 +451,64 @@ def tela_imagem(resultado: dict[str, Any]) -> None:
     d1.download_button("⬇️ Imagem analisada (PNG)", codificar_png(resultado["final"]),
                        "fluxovc_resultado.png", "image/png", width="stretch")
     d2.download_button("⬇️ Detecções (CSV)", para_csv(tabela), "fluxovc_deteccoes.csv", "text/csv", width="stretch")
+    painel_vlm(resultado["original"], resultado["veiculos"], estado().cfg)
+
+
+def obter_vlm() -> Any:
+    """Um VLM por sessão do navegador (carregar o modelo é caro)."""
+    ss = estado()
+    if ss.vlm is None:
+        with st.spinner("Carregando o VLM… (na primeira vez o modelo é baixado, ~500 MB)"):
+            ss.vlm = criar_vlm()
+    return ss.vlm
+
+
+def painel_vlm(imagem: Any, veiculos: list[Any], cfg: AppConfig) -> None:
+    """Botão "Descrever cena": o VLM complementa a pipeline com uma descrição em texto."""
+    ss = estado()
+    config_vlm = ConfigVLM.do_ambiente()
+    with st.expander("🤖 Descrever cena com IA (VLM, opcional)"):
+        if config_vlm.backend == "claude":
+            st.info("Backend **claude**: o frame **anonimizado** será enviado à API da Anthropic.")
+        else:
+            st.caption(f"Backend **local** ({config_vlm.modelo_local}): o frame não sai deste computador.")
+        pergunta = st.text_input(
+            "Pergunta (opcional)", key="vlm_pergunta",
+            placeholder="Vazio = descrição geral da cena. O modelo local responde melhor em inglês.",
+        )
+        if st.button("Descrever cena", key="vlm_descrever"):
+            try:
+                vlm = obter_vlm()
+                with st.spinner("Anonimizando o frame e consultando o VLM…"):
+                    frame = preparar_frame(imagem, [v.caixa for v in veiculos], obter_detector(cfg))
+                    resposta = descrever(vlm, frame, pergunta)
+                ss.vlm_resultado = {"frame": frame, "resposta": resposta, "pipeline": contagem_no_frame(veiculos)}
+            except (ErroVLM, ErroModelo) as erro:
+                st.error(str(erro))
+            except Exception:
+                logger.exception("Falha no VLM")
+                st.error("Erro inesperado ao consultar o VLM. Veja o terminal para detalhes.")
+        resultado = ss.vlm_resultado
+        if resultado is not None:
+            c1, c2 = st.columns([1, 1])
+            frame = resultado["frame"]
+            c1.image(frame.imagem, channels="BGR", width="stretch",
+                     caption=f"Imagem enviada ao VLM: reduzida, {frame.pessoas} pessoa(s) e "
+                             f"{frame.veiculos} região(ões) de placa pixelizadas")
+            resposta = resultado["resposta"]
+            c2.markdown(f"**Resposta do VLM** ({resposta.modelo}, {resposta.latencia_s:.1f} s):")
+            c2.write(resposta.texto or "(resposta vazia)")
+            c2.warning(AVISO_IA, icon="⚠️")
+            c2.markdown(f"**Pipeline neste frame:** {resultado['pipeline']}")
+
+
+def contagem_no_frame(veiculos: list[Any]) -> str:
+    if not veiculos:
+        return "nenhum veículo detectado"
+    contagem: dict[str, int] = {}
+    for v in veiculos:
+        contagem[v.nome_classe] = contagem.get(v.nome_classe, 0) + 1
+    return ", ".join(f"{n} {classe}" for classe, n in sorted(contagem.items()))
 
 
 def tela_previa(fonte: FonteEscolhida | None, cfg: AppConfig) -> None:

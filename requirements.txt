@@ -27,5 +27,10 @@ psutil==7.2.2           # memória do processo (métricas de desempenho)
 # Configuração (.env, usado só pelo VLM opcional)
 python-dotenv==1.2.4
 
+# VLM opcional (botão "Descrever cena"): modelo local ou API do Claude
+transformers==5.24.0
+num2words==0.5.14       # exigido pelo processador do SmolVLM
+anthropic==2.12.0
+
 # Testes
 pytest==9.2.0
