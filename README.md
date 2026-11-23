@@ -87,6 +87,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+> **Windows:** o PyTorch tem arquivos com caminhos muito longos. Se o `pip` falhar com
+> `OSError: [Errno 2] No such file or directory` e uma dica sobre *Long Path*, clone o projeto numa
+> pasta de caminho curto (ex.: `C:\fluxovc`) ou
+> [ative o suporte a caminhos longos](https://pip.pypa.io/warnings/enable-long-paths).
+
+Opcional: para configurar o VLM, copie `.env.example` para `.env` (veja [docs/vlm.md](docs/vlm.md)).
+
 ## Execução
 
 ```bash
@@ -188,6 +195,7 @@ FluxoVC/
 | [docs/metricas.md](docs/metricas.md) | definição das métricas, como fazer a contagem manual e anotar os frames |
 | [docs/resultados.md](docs/resultados.md) | tabelas e gráficos gerados pelo `evaluate.py` |
 | [docs/vlm.md](docs/vlm.md) | VLM opcional: anonimização, prompts, 10 casos de teste e resultados |
+| [docs/entrega.md](docs/entrega.md) | checklist de entrega, pendências, roteiro de slides e do vídeo de segurança |
 
 ## Pré-processamento
 
