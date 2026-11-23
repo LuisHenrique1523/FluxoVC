@@ -12,8 +12,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import cv2
 import pandas as pd
 import streamlit as st
+from streamlit_image_coordinates import streamlit_image_coordinates
 
 from src import __version__
 from src.acquisition.erros import ErroEntrada
@@ -25,6 +27,7 @@ from src.acquisition.fontes import (
     listar_videos_demo,
     salvar_upload,
 )
+from src.aplicacao.marcacao import MODOS, completa, desenhar_marcacao, finalizar, ponto_do_clique
 from src.aplicacao.relatorios import (
     deteccoes_para_dataframe,
     eventos_para_dataframe,
@@ -62,6 +65,8 @@ MODELOS = {"yolo11n.pt": "YOLO11n — rápido", "yolo11s.pt": "YOLO11s — mais 
 FONTES = ["Vídeo de demonstração", "Enviar vídeo", "Webcam", "URL / câmera IP", "Imagem única"]
 ATUALIZAR_PAINEIS_A_CADA = 10  # frames entre atualizações de gráfico/tabela/comparação
 NOMES_CALIBRACAO = ["1 · sup. esquerdo", "2 · sup. direito", "3 · inf. direito", "4 · inf. esquerdo"]
+SEM_MARCACAO = "Nenhum (só visualizar)"
+OPCOES_MARCACAO = {SEM_MARCACAO: None, "📏 Linha de contagem": "linha", "🔷 ROI": "roi", "🚀 Calibração": "calibracao"}
 
 
 @dataclass
@@ -87,6 +92,11 @@ def estado() -> Any:
     ss.setdefault("uploads", {})
     ss.setdefault("vlm", None)
     ss.setdefault("vlm_resultado", None)
+    ss.setdefault("marcacao", [])          # pontos clicados no modo de marcação atual
+    ss.setdefault("roi_pontos", None)      # ROI vinda dos cliques (None = padrão)
+    ss.setdefault("roi_versao", 0)         # muda a chave da tabela para ela recarregar
+    ss.setdefault("calib_pontos", None)
+    ss.setdefault("calib_versao", 0)
     return ss
 
 
@@ -225,16 +235,18 @@ def parametros(cfg: AppConfig) -> None:
 
     with sb.expander("🔷 ROI (região de interesse)"):
         tabela = st.data_editor(
-            tabela_pontos(PADRAO.geometria.roi), num_rows="dynamic", key="roi", disabled=rodando,
+            tabela_pontos(estado().roi_pontos or PADRAO.geometria.roi), num_rows="dynamic",
+            key=f"roi_{estado().roi_versao}", disabled=rodando,
             column_config={c: st.column_config.NumberColumn(c, min_value=0.0, max_value=1.0, step=0.01) for c in "xy"},
         )
         cfg.geometria.roi = pontos_de(tabela)
         st.caption("Polígono com pelo menos 3 pontos, em coordenadas normalizadas.")
 
-    with sb.expander("🚀 Calibração da velocidade"):
+    calibrando = estado().get("modo_marcacao") == "🚀 Calibração" or estado().get("_abrir_calibracao", False)
+    with sb.expander("🚀 Calibração da velocidade", expanded=calibrando):
         tabela = st.data_editor(
-            tabela_pontos(PADRAO.geometria.homografia_origem, NOMES_CALIBRACAO), num_rows="fixed",
-            key="calibracao", disabled=rodando,
+            tabela_pontos(estado().calib_pontos or PADRAO.geometria.homografia_origem, NOMES_CALIBRACAO),
+            num_rows="fixed", key=f"calibracao_{estado().calib_versao}", disabled=rodando,
             column_config={c: st.column_config.NumberColumn(c, min_value=0.0, max_value=1.0, step=0.01) for c in "xy"},
         )
         cfg.geometria.homografia_origem = pontos_de(tabela)
@@ -246,8 +258,9 @@ def parametros(cfg: AppConfig) -> None:
             "Comprimento real (m)", 0.5, 500.0, PADRAO.geometria.comprimento_pista_m, 0.5, key="comp_m", disabled=rodando
         )
         st.caption(
-            "Marque 4 pontos de um trecho retangular da pista (ex.: faixas e marcas no asfalto) "
-            "e informe as medidas reais. A velocidade depende dessa calibração."
+            "Marque os 4 cantos de um trecho retangular da pista clicando na prévia "
+            "(Marcar na imagem → Calibração) e informe aqui as medidas reais desse trecho. "
+            "A velocidade depende dessa calibração."
         )
         cfg.geometria.ema_alpha = st.slider(
             "α da suavização (EMA)", 0.05, 1.0, PADRAO.geometria.ema_alpha, 0.05, key="alpha", disabled=rodando,
@@ -511,6 +524,88 @@ def contagem_no_frame(veiculos: list[Any]) -> str:
     return ", ".join(f"{n} {classe}" for classe, n in sorted(contagem.items()))
 
 
+def aplicar_marcacao_pendente() -> None:
+    """Aplica os pontos clicados ANTES de desenhar a barra lateral (os widgets já nascem atualizados)."""
+    ss = estado()
+    pendente = ss.pop("_aplicar_marcacao", None)
+    if pendente is None:
+        return
+    modo, pontos = pendente
+    if modo == "linha":
+        (ss["lx1"], ss["ly1"]), (ss["lx2"], ss["ly2"]) = [(round(x, 2), round(y, 2)) for x, y in pontos]
+    elif modo == "roi":
+        ss.roi_pontos, ss.roi_versao = list(pontos), ss.roi_versao + 1
+    elif modo == "calibracao":
+        ss.calib_pontos, ss.calib_versao = list(pontos), ss.calib_versao + 1
+        ss["_abrir_calibracao"] = True  # mostra largura e comprimento reais para preencher
+    ss["modo_marcacao"] = SEM_MARCACAO
+    ss.marcacao = []
+    st.toast(f"{MODOS[modo].rotulo}: atualizada pelos cliques.", icon="✅")
+
+
+def concluir_marcacao(modo: str, largura: int, altura: int) -> None:
+    ss = estado()
+    try:
+        ss["_aplicar_marcacao"] = (modo, finalizar(modo, ss.marcacao, largura, altura))
+    except (ErroGeometria, ValueError) as erro:
+        ss["_erro_marcacao"] = f"Marcação inválida: {erro} Desfaça o último ponto ou recomece."
+    st.rerun()
+
+
+def limpar_pontos_marcados() -> None:
+    estado().marcacao = []
+
+
+def painel_marcacao(imagem: Any, cfg: AppConfig) -> None:
+    """Prévia clicável: marca linha, ROI ou calibração com o mouse."""
+    ss = estado()
+    escolha = st.radio(
+        "🖱️ Marcar na imagem com o mouse", list(OPCOES_MARCACAO), horizontal=True, key="modo_marcacao",
+        on_change=limpar_pontos_marcados,
+        help="Escolha o que marcar e clique na imagem. Os valores da barra lateral são preenchidos sozinhos.",
+    )
+    modo = OPCOES_MARCACAO[escolha]
+    previa = previa_configuracao(imagem, cfg)
+    if modo is None:
+        st.image(
+            previa, channels="BGR",
+            caption="Prévia: ROI (ciano), linha de contagem (amarelo, lados A e B) e calibração (magenta, pontos 1–4)",
+        )
+        return
+
+    altura, largura = imagem.shape[:2]
+    pontos: list = ss.marcacao
+    st.info(MODOS[modo].instrucao)
+    erro = ss.pop("_erro_marcacao", None)
+    if erro:
+        st.error(erro)
+    c1, c2, c3 = st.columns(3)
+    if c1.button("↩️ Desfazer último ponto", disabled=not pontos, key="marc_desfazer", width="stretch"):
+        pontos.pop()
+        st.rerun()
+    if c2.button("🗑️ Recomeçar", disabled=not pontos, key="marc_limpar", width="stretch"):
+        pontos.clear()
+        st.rerun()
+    if modo == "roi" and c3.button("✅ Concluir ROI", disabled=len(pontos) < MODOS["roi"].minimo,
+                                   type="primary", key="marc_concluir", width="stretch"):
+        concluir_marcacao(modo, largura, altura)
+
+    clique = streamlit_image_coordinates(
+        cv2.cvtColor(desenhar_marcacao(previa, modo, pontos), cv2.COLOR_BGR2RGB),
+        key="clique_previa", width="content", cursor="crosshair",
+    )
+    if clique and clique.get("unix_time") != ss.get("_ultimo_clique"):
+        ss["_ultimo_clique"] = clique.get("unix_time")
+        ponto = ponto_do_clique(clique)
+        if ponto is not None:
+            pontos.append(ponto)
+            if completa(modo, pontos):
+                concluir_marcacao(modo, largura, altura)
+        st.rerun()
+    total = MODOS[modo].maximo
+    st.caption(f"Pontos marcados: {len(pontos)}" + (f" de {total}" if total else " (mínimo 3)"))
+
+
 def tela_previa(fonte: FonteEscolhida | None, cfg: AppConfig) -> None:
     if fonte is None:
         st.info("👈 Escolha uma fonte de entrada na barra lateral e clique em **Analisar**.")
@@ -529,7 +624,10 @@ def tela_previa(fonte: FonteEscolhida | None, cfg: AppConfig) -> None:
         st.error("Não foi possível abrir a prévia desta fonte. Veja o terminal para detalhes.")
         return
     if imagem is None:
-        st.info(f"Fonte selecionada: **{fonte.nome}**. Clique em **Analisar** para começar.")
+        st.info(
+            f"Fonte selecionada: **{fonte.nome}**. Clique em **Analisar** para começar. "
+            "Para marcar linha, ROI e calibração com o mouse, use um vídeo ou uma imagem."
+        )
         return
     altura, largura = imagem.shape[:2]
     erros, avisos = validar_configuracao(cfg, largura, altura)
@@ -537,10 +635,7 @@ def tela_previa(fonte: FonteEscolhida | None, cfg: AppConfig) -> None:
         st.error(erro)
     for aviso in avisos:
         st.warning(aviso)
-    st.image(
-        previa_configuracao(imagem, cfg), channels="BGR",
-        caption="Prévia: ROI (ciano), linha de contagem (amarelo, lados A e B) e calibração (magenta, pontos 1–4)",
-    )
+    painel_marcacao(imagem, cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +646,7 @@ def main() -> None:
     st.title("🚦 FluxoVC")
     st.caption("Monitor de fluxo de veículos em vias urbanas — detecção, rastreamento, contagem e velocidade")
 
+    aplicar_marcacao_pendente()
     st.sidebar.header("Configurações")
     fonte = escolher_fonte()
     parametros(cfg)

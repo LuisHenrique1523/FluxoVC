@@ -18,6 +18,7 @@ torchvision==0.29.2
 
 # Interface
 streamlit==1.67.0
+streamlit-image-coordinates==0.4.1   # clique na prévia para marcar linha, ROI e calibração
 
 # Métricas e gráficos
 pandas==3.1.1

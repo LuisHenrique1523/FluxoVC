@@ -66,6 +66,7 @@ equipe:
 | lap | 0.5.14 | associação do ByteTrack |
 | torch / torchvision | 2.15.0 / 0.29.2 | backend do YOLO |
 | streamlit | 1.67.0 | interface |
+| streamlit-image-coordinates | 0.4.1 | clique na prévia (marcação com o mouse) |
 | pandas / matplotlib | 3.1.1 / 3.11.2 | tabelas, métricas e gráficos |
 | psutil | 7.2.2 | memória (métricas de desempenho) |
 | python-dotenv | 1.2.4 | `.env` (VLM opcional) |
@@ -100,14 +101,23 @@ Opcional: para configurar o VLM, copie `.env.example` para `.env` (veja [docs/vl
 streamlit run app.py
 ```
 
-O navegador abre em <http://localhost:8501>. Na barra lateral:
+O navegador abre em <http://localhost:8501>.
 
-1. Escolha a **fonte**: vídeo de demonstração, envio de vídeo, webcam, URL ou imagem única.
-2. Confira na **prévia** a ROI (ciano), a linha de contagem (amarelo, lados A e B) e os pontos de
-   calibração (magenta). Ajuste nos painéis da barra lateral.
+1. Na barra lateral, escolha a **fonte**: vídeo de demonstração, envio de vídeo, webcam, URL ou
+   imagem única.
+2. A **prévia** mostra a ROI (ciano), a linha de contagem (amarelo, lados A e B) e a calibração
+   (magenta). Para mudar, use **🖱️ Marcar na imagem com o mouse**, acima da prévia, e clique:
+   - **📏 Linha de contagem:** 2 cliques, o início (A) e o fim (B), atravessando a pista;
+   - **🔷 ROI:** os cantos da área da pista, e depois **Concluir ROI**;
+   - **🚀 Calibração:** os 4 cantos de um trecho retangular da pista, em qualquer ordem. Depois
+     informe a **largura e o comprimento reais** desse trecho no painel que se abre na barra
+     lateral.
+
+   Os pontos clicados aparecem em laranja, e há botões para desfazer e recomeçar. Os valores da
+   barra lateral são preenchidos sozinhos e continuam disponíveis para ajuste fino.
 3. Clique em **▶️ Analisar**. Ao final, baixe os eventos, o resumo e o vídeo processado.
 
-![Interface: prévia da configuração](docs/img/interface_previa.png)
+![Marcando a ROI com o mouse](docs/img/interface_marcacao.png)
 
 ### Outros comandos
 
@@ -257,9 +267,9 @@ geometrias.
 | | ⚡ limiar de confiança | 0,35 |
 | | ⚡ limiar de IoU (NMS) | 0,50 |
 | Pré-processamento | ⚡ letterbox, ROI, CLAHE (limite, grade), redução de ruído (filtro, kernel), frame skip | letterbox e ROI ligados |
-| Linha de contagem | pontos A e B (coordenadas normalizadas), ponto do veículo (base/centro) | horizontal em y = 0,60 |
-| ROI | tabela de pontos editável (≥ 3) | faixa inferior do frame |
-| Calibração | 4 pontos, largura e comprimento reais (m), α da EMA | 7 m × 20 m, α = 0,4 |
+| Linha de contagem | 🖱️ 2 cliques na prévia (ou sliders A e B), ponto do veículo (base/centro) | horizontal em y = 0,60 |
+| ROI | 🖱️ cliques nos cantos da pista (ou tabela de pontos, ≥ 3) | faixa inferior do frame |
+| Calibração | 🖱️ 4 cliques em qualquer ordem (ou tabela), largura e comprimento reais (m), α da EMA | exemplo genérico, **precisa ser calibrada** |
 | Camadas | ⚡ cada camada, opacidade do mapa de calor e da ROI, colormap | todas, exceto o mapa de calor |
 | Ações | Analisar · Parar · Salvar configuração (JSON) · Limpar | — |
 
@@ -369,6 +379,7 @@ um.>`
 | NumPy, pandas, PyTorch, torchvision, psutil, python-dotenv | BSD-3-Clause |
 | Pillow | MIT-CMU (HPND) |
 | Streamlit | Apache-2.0 |
+| streamlit-image-coordinates | MIT |
 | matplotlib | Matplotlib License (baseada na PSF) |
 | lap | BSD-2-Clause |
 | pytest | MIT |
