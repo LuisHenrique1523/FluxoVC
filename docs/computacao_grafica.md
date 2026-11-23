@@ -116,14 +116,31 @@ def gerar_birdseye(imagem, matriz_px, tamanho):   # matriz_px = escala (px/m) @ 
     return cv2.warpPerspective(imagem, matriz_px, tamanho, flags=cv2.INTER_LINEAR)
 
 def estimar_velocidade_kmh(posicoes_m, tempos_s, dt_minimo_s=0.25):
-    ...
-    distancia = float(np.linalg.norm(arr[-1] - arr[0]))   # metros, já no plano da pista
-    return distancia / dt * 3.6
+    ...                                              # posições em metros, no plano da pista
+    centrados = tempos - tempos.mean()
+    velocidade = centrados @ (arr - arr.mean(axis=0)) / (centrados @ centrados)  # reta: (vx, vy) m/s
+    return float(np.linalg.norm(velocidade)) * 3.6
 ```
 
 A velocidade usa o **centro da base da caixa** (o contato com o chão), porque a homografia só vale
-para pontos no plano da pista. A posição em metros é medida numa janela de 1 s, e não frame a
-frame, para que o tremor das caixas não gere picos irreais.
+para pontos no plano da pista. É a inclinação de uma **reta ajustada** (mínimos quadrados) às
+posições em metros da última janela de 1 s, e não a diferença frame a frame. Assim, o tremor das
+caixas não gera picos irreais.
+
+**Correção feita depois de testar com vídeo real:** a primeira versão usava o ponto **suavizado**
+(EMA) e só a primeira e a última posição da janela. Logo depois de um ID nascer, o ponto suavizado
+ainda está "alcançando" o veículo, então a velocidade saía **subestimada**: 43 km/h em média para
+um carro a 50 km/h com 0,5 s de histórico. Num vídeo com muitas trocas de ID, os veículos cruzavam
+a linha ainda "jovens", e quase 40 % dos eventos ficavam sem velocidade.
+
+Como ficou agora:
+- a velocidade usa o ponto **bruto**, e o ajuste de reta já filtra o tremor;
+- ela só é calculada com pelo menos **0,5 s** de histórico no trecho calibrado;
+- se o veículo cruzar a linha antes disso, a velocidade é **preenchida no evento depois**.
+
+Com essa versão, a média para IDs jovens fica em cerca de 50 km/h (`tests/test_velocidade.py`).
+A interface também avisa quando a calibração ainda é a padrão, que não serve para nenhum vídeo
+real.
 
 ![Calibração e vista de cima](img/cg/03_homografia.png)
 
@@ -136,15 +153,15 @@ o plano do chão. Por isso a velocidade usa o ponto da base, marcado em vermelho
 | ID | Classe | Real (km/h) | Estimada (km/h) | Erro |
 |---|---|---|---|---|
 | 1 | carro | 50,0 | 50,4 | +0,8 % |
-| 2 | carro | 45,0 | 44,2 | −1,8 % |
-| 3 | ônibus | 35,0 | 35,9 | +2,6 % |
-| 4 | carro | 55,0 | 56,6 | +2,9 % |
-| 5 | moto | 40,0 | 39,9 | −0,3 % |
-| 6 | caminhão | 40,0 | 41,3 | +3,3 % |
-| 7 | carro | 60,0 | 62,3 | +3,8 % |
-| 8 | carro | 50,0 | 50,9 | +1,8 % |
+| 2 | carro | 45,0 | 44,8 | −0,4 % |
+| 3 | ônibus | 35,0 | 36,2 | +3,4 % |
+| 4 | carro | 55,0 | 56,1 | +2,0 % |
+| 5 | moto | 40,0 | 39,7 | −0,7 % |
+| 6 | caminhão | 40,0 | 42,1 | +5,4 % |
+| 7 | carro | 60,0 | 62,5 | +4,2 % |
+| 8 | carro | 50,0 | 51,4 | +2,7 % |
 
-O erro fica abaixo de 4 % com detecções ruidosas. Ele vem do ruído das caixas e de a base da caixa
+O erro fica em até cerca de 5 % com detecções ruidosas. Ele vem do ruído das caixas e de a base da caixa
 2D não ser exatamente o ponto de contato do veículo 3D. Em vídeo real, o erro depende sobretudo da
 **qualidade da calibração**: medidas reais erradas viram erro proporcional na velocidade. Esse
 teste é automatizado em `tests/test_cena_sintetica.py`, com limite de 6 %.

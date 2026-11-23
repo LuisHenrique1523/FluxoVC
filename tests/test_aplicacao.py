@@ -137,7 +137,11 @@ def test_previa_e_primeiro_frame(fabrica_video) -> None:
 
 
 def test_validar_configuracao() -> None:
-    assert validar_configuracao(AppConfig(), 1280, 720) == ([], [])
+    erros, avisos = validar_configuracao(AppConfig(), 1280, 720)
+    assert erros == [] and len(avisos) == 1 and "calibração da velocidade ainda é a padrão" in avisos[0]
+    calibrada = AppConfig()
+    calibrada.geometria.comprimento_pista_m = 35.0  # medida real informada: sem aviso
+    assert validar_configuracao(calibrada, 1280, 720) == ([], [])
     cfg = AppConfig()
     cfg.geometria.roi = [(0.1, 0.1)]
     cfg.contagem.linha_p1 = cfg.contagem.linha_p2 = (0.5, 0.5)

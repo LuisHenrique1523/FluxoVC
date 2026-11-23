@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Hashable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -95,6 +95,8 @@ class ContadorLinha:
         self.eventos: list[EventoCruzamento] = []
         self.contagem: Counter[tuple[int, str]] = Counter()
         self.frame_ultimo_cruzamento: int | None = None
+        # eventos contados antes de a velocidade estar disponível: ID → posição na lista
+        self._sem_velocidade: dict[Hashable, int] = {}
 
     def atualizar(
         self,
@@ -122,7 +124,21 @@ class ContadorLinha:
         self.eventos.append(evento)
         self.contagem[(classe, sentido)] += 1
         self.frame_ultimo_cruzamento = frame
+        if velocidade_kmh is None:
+            self._sem_velocidade[id_rastreio] = len(self.eventos) - 1
         return evento
+
+    def completar_velocidade(self, id_rastreio: Hashable, velocidade_kmh: float | None) -> bool:
+        """Preenche a velocidade de um evento que foi contado sem ela.
+
+        Acontece quando o veículo cruza a linha logo depois de aparecer, antes de
+        ter histórico suficiente no trecho calibrado. Devolve ``True`` se preencheu.
+        """
+        if velocidade_kmh is None or id_rastreio not in self._sem_velocidade:
+            return False
+        indice = self._sem_velocidade.pop(id_rastreio)
+        self.eventos[indice] = replace(self.eventos[indice], velocidade_kmh=velocidade_kmh)
+        return True
 
     def esquecer(self, id_rastreio: Hashable) -> None:
         """Descarta a última posição do ID (ele continua marcado como contado)."""

@@ -25,7 +25,13 @@ import numpy as np
 import pandas as pd
 
 from src.acquisition.fontes import FonteVideo, Frame, abrir_arquivo
-from src.config import OUTPUTS_DIR, AppConfig, VisualizacaoConfig
+from src.config import (
+    AVISO_CALIBRACAO_PADRAO,
+    OUTPUTS_DIR,
+    AppConfig,
+    VisualizacaoConfig,
+    calibracao_e_padrao,
+)
 from src.geometry.coordenadas import normalizados_para_pixels
 from src.geometry.erros import ErroGeometria
 from src.geometry.homografia import calcular_homografia
@@ -267,6 +273,9 @@ def validar_configuracao(cfg: AppConfig, largura: int, altura: int) -> tuple[lis
         )
     except ErroGeometria as erro:
         avisos.append(f"Velocidade será desativada: {erro}")
+    else:
+        if calibracao_e_padrao(geo):
+            avisos.append(AVISO_CALIBRACAO_PADRAO)
     return erros, avisos
 
 

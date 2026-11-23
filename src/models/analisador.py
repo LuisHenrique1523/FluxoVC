@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from src.acquisition.fontes import Frame
-from src.config import CLASSES_VEICULO, AppConfig
+from src.config import AVISO_CALIBRACAO_PADRAO, CLASSES_VEICULO, AppConfig, calibracao_e_padrao
 from src.geometry.coordenadas import caixas_modelo_para_original, normalizados_para_pixels
 from src.geometry.erros import HomografiaInvalidaError, RoiInvalidaError
 from src.geometry.homografia import calcular_homografia
@@ -175,6 +175,9 @@ class AnalisadorFluxo:
             logger.warning(aviso)
             self.avisos.append(aviso)
             return None, None
+        if calibracao_e_padrao(geo):
+            logger.warning(AVISO_CALIBRACAO_PADRAO)
+            self.avisos.append(AVISO_CALIBRACAO_PADRAO)
         return matriz, origem_px
 
     # ------------------------------------------------------------------
@@ -226,7 +229,9 @@ class AnalisadorFluxo:
                 det.id_rastreio, traj.classe, traj.ponto_atual, frame.indice,
                 frame.timestamp_s, traj.velocidade_kmh,
             )
-            if evento is not None:
+            if evento is None:
+                self.contador.completar_velocidade(det.id_rastreio, traj.velocidade_kmh)
+            else:
                 eventos.append(evento)
                 logger.info(
                     "Contado: ID %s %s %s em %.2fs", evento.id_rastreio, evento.nome_classe,

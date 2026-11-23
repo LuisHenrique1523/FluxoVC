@@ -311,3 +311,13 @@ def test_suavizador_ids_independentes_e_limpeza() -> None:
     s.remover(1)
     s.remover(99)  # remover ID inexistente não dá erro
     assert len(s) == 0 and s.obter(1) is None
+
+
+def test_velocidade_por_ajuste_de_reta_resiste_ao_tremor() -> None:
+    # carro a 15 m/s (54 km/h) com ±0,3 m de tremor alternado: a primeira e a última
+    # posição sozinhas errariam bastante; o ajuste de reta usa todas
+    tempos = [i / 10 for i in range(11)]
+    tremor = [0.3 if i % 2 else -0.3 for i in range(11)]
+    posicoes = [(0.0, 15 * t + e) for t, e in zip(tempos, tremor)]
+    assert estimar_velocidade_kmh(posicoes, tempos) == pytest.approx(54.0, rel=0.05)
+    assert estimar_velocidade_kmh([(0, 0), (0, 0), (0, 0)], [0.0, 0.5, 1.0]) == pytest.approx(0.0)

@@ -238,8 +238,9 @@ frames **e** o deslocamento atravessa o **segmento** (e não o prolongamento da 
 conta uma vez.
 
 **Velocidade:** 4 pontos de um trecho retangular da pista, mais as medidas reais, dão uma
-homografia imagem → metros. A velocidade é a distância percorrida no plano da pista numa janela de
-1 s.
+homografia imagem → metros. A velocidade é a inclinação de uma reta ajustada às posições no plano
+da pista numa janela de 1 s. **É obrigatório calibrar para cada vídeo:** a calibração padrão é só
+um exemplo, e a interface avisa enquanto ela não for alterada.
 
 Explicação completa, com código e figuras: [docs/computacao_grafica.md](docs/computacao_grafica.md).
 
@@ -305,7 +306,7 @@ Prompts, regras e resultados em [docs/vlm.md](docs/vlm.md).
 **Acertos verificados (cena sintética, em que a resposta certa é conhecida):**
 - Os 8 veículos em movimento foram contados, com a classe e o sentido corretos. O carro
   estacionado na calçada foi ignorado pela ROI (`tests/test_cena_sintetica.py`).
-- A velocidade estimada pela homografia ficou a até **4 %** da velocidade real
+- A velocidade estimada pela homografia ficou a até **5 %** da velocidade real
   ([tabela](docs/computacao_grafica.md#3-transformação-de-perspectiva-homografia)).
 - O letterbox inverso devolve a coordenada original com erro ≤ 1 px em 6 resoluções.
 

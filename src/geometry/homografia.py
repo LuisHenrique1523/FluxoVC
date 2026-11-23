@@ -134,20 +134,27 @@ def gerar_birdseye(imagem: np.ndarray, matriz_px: np.ndarray, tamanho: tuple[int
 def estimar_velocidade_kmh(
     posicoes_m: ArrayLike, tempos_s: Sequence[float], dt_minimo_s: float = 0.25
 ) -> float | None:
-    """Velocidade média (km/h) entre a primeira e a última posição da janela.
+    """Velocidade (km/h) pelo ajuste de uma reta posição × tempo (mínimos quadrados).
 
-    Usar a janela inteira (e não frame a frame) reduz o efeito do "tremor" das
-    caixas, que geraria picos irreais de velocidade.
+    A inclinação da reta em X e em Y é o vetor velocidade (m/s). Usar todas as
+    posições da janela, e não só a primeira e a última, reduz o efeito do
+    "tremor" das caixas, que geraria picos irreais de velocidade. As posições
+    devem ser **brutas** (sem EMA): a suavização atrasa o ponto e subestima a
+    velocidade, principalmente logo depois de o ID aparecer.
 
     Returns:
         Velocidade em km/h, ou ``None`` se houver menos de 2 posições ou se o
         intervalo de tempo for curto demais para uma estimativa confiável.
     """
     arr = np.asarray(posicoes_m, dtype=np.float64).reshape(-1, 2)
-    if len(arr) < 2 or len(tempos_s) != len(arr):
+    tempos = np.asarray(tempos_s, dtype=np.float64).ravel()
+    if len(arr) < 2 or len(tempos) != len(arr):
         return None
-    dt = float(tempos_s[-1]) - float(tempos_s[0])
-    if dt < dt_minimo_s:
+    if float(tempos[-1] - tempos[0]) < dt_minimo_s:
         return None
-    distancia = float(np.linalg.norm(arr[-1] - arr[0]))
-    return distancia / dt * 3.6
+    centrados = tempos - tempos.mean()
+    variancia = float(centrados @ centrados)
+    if variancia <= 0:
+        return None
+    velocidade = centrados @ (arr - arr.mean(axis=0)) / variancia  # (vx, vy) em m/s
+    return float(np.linalg.norm(velocidade)) * 3.6

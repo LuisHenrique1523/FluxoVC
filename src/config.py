@@ -211,3 +211,21 @@ def carregar_config(caminho: Path) -> AppConfig:
     except json.JSONDecodeError as erro:
         raise ValueError(f"'{Path(caminho).name}' não é um JSON válido: {erro}") from erro
     return config_de_dict(dados)
+
+
+AVISO_CALIBRACAO_PADRAO = (
+    "A calibração da velocidade ainda é a padrão (um exemplo genérico de 7 m × 20 m): as "
+    "velocidades não correspondem à realidade. Marque 4 pontos de um trecho retangular da pista "
+    "e informe as medidas reais no painel \"Calibração da velocidade\"."
+)
+
+
+def calibracao_e_padrao(geo: GeometriaConfig) -> bool:
+    """``True`` se os 4 pontos e as medidas da calibração não foram alterados."""
+    padrao = GeometriaConfig()
+    pontos = [tuple(round(float(v), 4) for v in p) for p in geo.homografia_origem]
+    return (
+        pontos == [tuple(p) for p in padrao.homografia_origem]
+        and geo.largura_pista_m == padrao.largura_pista_m
+        and geo.comprimento_pista_m == padrao.comprimento_pista_m
+    )

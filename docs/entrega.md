@@ -15,7 +15,7 @@ Situação em 22/11/2026, depois da Fase 8: ✅ pronto · ⚠️ pronto em parte
 | Interface seleciona entrada e altera ≥ 2 parâmetros | ✅ | 5 fontes de entrada e mais de 20 parâmetros na barra lateral, vários deles ao vivo (`tests/test_aplicacao.py`) |
 | ≥ 3 pré-processamentos explicados | ✅ | 4 operações mais o frame skip, cada uma com toggle e ajuda na interface, no README e em `docs/pipeline.md` |
 | Resultados gráficos (caixas, trajetórias, heatmap, linha, bird's-eye) | ✅ | `docs/computacao_grafica.md` (figuras 04 a 07) |
-| ≥ 1 métrica de qualidade e ≥ 1 de desempenho, em casos identificados | ⚠️ | Código e testes prontos (`scripts/evaluate.py`). FPS medido (cerca de 9 com o n e 4 com o s), velocidade validada na cena sintética (erro < 4 %) e VLM avaliado em 20 perguntas. **Falta:** contagem manual e cerca de 30 frames anotados do vídeo real, depois rodar o `evaluate.py` (`docs/metricas.md`) |
+| ≥ 1 métrica de qualidade e ≥ 1 de desempenho, em casos identificados | ⚠️ | Código e testes prontos (`scripts/evaluate.py`). FPS medido (cerca de 9 com o n e 4 com o s), velocidade validada na cena sintética (erro de até 5 %) e VLM avaliado em 20 perguntas. **Falta:** contagem manual e cerca de 30 frames anotados do vídeo real, depois rodar o `evaluate.py` (`docs/metricas.md`) |
 | Arquivo inválido, sem câmera e sem detecções tratados | ✅ | Tabela na seção 8 de `docs/pipeline.md`; `tests/test_erros.py` |
 | Caminhos relativos; sem segredos, venv, caches, pesos ou dados grandes | ✅ | Nenhum caminho absoluto no código; `.env`, `pesos/`, `*.pt`, `outputs/` e `.venv/` no `.gitignore`; repositório com cerca de 10 MB (só figuras) |
 | `requirements.txt` testado em ambiente limpo | ✅ | Ambiente novo (Python 3.12.10, Windows 10, cópia do repositório): `pip install -r requirements.txt` sem erros; 352 testes passaram e 2 foram pulados de propósito (precisam dos modelos já baixados). No Windows, a instalação exige um caminho de pasta curto (aviso no README) |
@@ -58,7 +58,7 @@ contribuição do README (I1 a I4).
 | 4 | **Pré-processamento** | Letterbox, CLAHE no canal L, filtro bilateral, ROI e frame skip: o que cada um resolve e por que nessa ordem | `11_preprocessamento.png` | I2 | 1:15 |
 | 5 | **Modelo** | YOLO11n × YOLO11s, COCO (classes 2, 3, 5 e 7), ByteTrack; pessoas ignoradas; roda em CPU | Tabela n × s (FPS) | I3 | 1:00 |
 | 6 | **Coordenadas** | Modelo → original → tela; a conta do letterbox inverso com números reais; teste de ida e volta ≤ 1 px | `01_coordenadas.png` e `02_letterbox.png` | I2 | 1:15 |
-| 7 | **Contagem e velocidade** | Produto vetorial e segmento; contar cada ID uma vez; homografia de 4 pontos; velocidade real × estimada (erro < 4 %) | `03_homografia.png` e a tabela de velocidades | I3 | 1:30 |
+| 7 | **Contagem e velocidade** | Produto vetorial e segmento; contar cada ID uma vez; homografia de 4 pontos; velocidade real × estimada (erro de até 5 %); o bug da velocidade subestimada encontrado com vídeo real | `03_homografia.png` e a tabela de velocidades | I3 | 1:30 |
 | 8 | **Gráficos em camadas** | Ordem das camadas, `addWeighted` com máscara, mapa de calor com colormap, EMA (tremor × atraso) | `04_camadas.png`, `05_mapa_calor.png`, `08_ema.png` | I4 | 1:30 |
 | 9 | **Interface** | Fontes, parâmetros ao vivo × congelados, prévia, gráfico, eventos, downloads; tratamento de erros | `interface_previa.png` ou demonstração ao vivo | I1 | 1:30 |
 | 10 | **Métricas** | Erro de contagem e MAE, P/R/F1 com IoU ≥ 0,5, estabilidade do rastreamento, FPS e latência por etapa | Tabelas de `docs/resultados.md` | I4 | 1:15 |

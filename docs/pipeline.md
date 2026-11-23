@@ -117,9 +117,9 @@ largura e comprimento reais do trecho em metros. `cv2.getPerspectiveTransform` c
 3×3 `H` que leva pixels para metros no plano da pista. Multiplicando `H` por uma escala (pixels
 por metro), `cv2.warpPerspective` gera a vista "bird's-eye".
 
-A velocidade é a distância em metros entre a primeira e a última posição de uma janela de
-tempo, dividida pelo Δt (× 3,6 para km/h). Usar a janela, e não frame a frame, evita picos
-causados pelo tremor das caixas.
+A velocidade é a inclinação de uma reta ajustada (mínimos quadrados) às posições em metros de
+uma janela de tempo (× 3,6 para km/h). Usar a janela, e não frame a frame, evita picos causados
+pelo tremor das caixas.
 
 **Validação (homografia degenerada):** exige 4 pontos formando um quadrilátero convexo, sem três
 pontos alinhados, sem cruzamento (testado pelo sinal do produto vetorial entre arestas
@@ -169,9 +169,15 @@ Para cada frame processado:
 4. **Histórico por ID** (`rastreamento.py`): guarda as últimas posições suavizadas por EMA, os
    votos de classe e a velocidade. A classe exibida é a mais votada, porque o detector às vezes
    alterna entre carro e caminhão no mesmo veículo. IDs não vistos por 30 frames são descartados.
-5. **Velocidade:** a posição suavizada vai para metros pela homografia. A velocidade é a média na
-   última janela de 1 s, medida só dentro do quadrilátero calibrado, já que fora dele a homografia
-   extrapola. Homografia inválida desativa só a velocidade, com aviso; a contagem continua.
+5. **Velocidade:** a posição **bruta** vai para metros pela homografia, porque a EMA atrasaria o
+   ponto e subestimaria a velocidade. A velocidade é calculada assim:
+   - é o ajuste de reta na última janela de 1 s;
+   - é medida só dentro do quadrilátero calibrado, já que fora dele a homografia extrapola;
+   - exige pelo menos 0,5 s de histórico;
+   - se o veículo for contado antes disso, ela é preenchida no evento depois.
+
+   Homografia inválida desativa só a velocidade, com aviso; a contagem continua. A calibração
+   padrão também gera um aviso, porque é só um exemplo.
 6. **Contagem:** cruzamento da linha virtual (§4.3).
 
 O tempo de cada etapa (pré-processamento, inferência e interpretação) é medido em todo frame.

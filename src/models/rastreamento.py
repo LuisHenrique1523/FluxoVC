@@ -18,6 +18,10 @@ from src.geometry.homografia import estimar_velocidade_kmh, transformar_pontos
 from src.geometry.roi import ponto_na_roi
 from src.geometry.suavizacao import SuavizadorEMA
 
+# Com menos que isso de histórico no trecho calibrado, a estimativa oscila demais
+# (ex.: 19 a 67 km/h para um carro a 50 km/h com 0,3 s de histórico).
+TEMPO_MINIMO_VELOCIDADE_S: float = 0.5
+
 
 @dataclass
 class Trajetoria:
@@ -28,7 +32,7 @@ class Trajetoria:
     votos_classe: Counter[int] = field(default_factory=Counter)
     ultimo_frame: int = 0
     velocidade_kmh: float | None = None
-    # amostras (tempo, posição em metros) dentro da janela de velocidade
+    # amostras (tempo, posição bruta em metros) dentro da janela de velocidade
     _amostras_m: deque[tuple[float, np.ndarray]] = field(default_factory=deque)
 
     @property
@@ -84,7 +88,9 @@ class HistoricoTrajetorias:
         traj.pontos.append(suave)
         traj.votos_classe[classe] += 1
         traj.ultimo_frame = frame
-        self._atualizar_velocidade(traj, suave, tempo_s)
+        # velocidade com o ponto BRUTO: a EMA atrasa o ponto e subestimaria a velocidade,
+        # principalmente nos primeiros frames de um ID (o ajuste de reta já filtra o tremor)
+        self._atualizar_velocidade(traj, (float(ponto[0]), float(ponto[1])), tempo_s)
         return traj
 
     def _atualizar_velocidade(self, traj: Trajetoria, ponto: tuple[float, float], tempo_s: float) -> None:
@@ -97,7 +103,9 @@ class HistoricoTrajetorias:
         while traj._amostras_m and tempo_s - traj._amostras_m[0][0] > self.janela_velocidade_s:
             traj._amostras_m.popleft()
         tempos = [t for t, _ in traj._amostras_m]
-        estimativa = estimar_velocidade_kmh([p for _, p in traj._amostras_m], tempos)
+        estimativa = estimar_velocidade_kmh(
+            [p for _, p in traj._amostras_m], tempos, TEMPO_MINIMO_VELOCIDADE_S
+        )
         if estimativa is not None:
             traj.velocidade_kmh = estimativa
 
