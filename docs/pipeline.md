@@ -314,3 +314,27 @@ passo de anotação. Resultados em [resultados.md](resultados.md), gerado por
 | `avaliacao.py` | roda um vídeo com uma configuração e avalia a detecção nos frames anotados |
 | `relatorio.py` | tabelas Markdown, gráficos (matplotlib) e o `docs/resultados.md` |
 
+
+## 8. Tratamento de erros
+
+Nenhum erro previsto derruba a interface. Cada caso vira uma mensagem em português, e o detalhe
+técnico vai para o log do terminal (`logging`). Na interface, erros inesperados são registrados com
+`logger.exception` e aparecem ao usuário como uma mensagem genérica.
+
+| Situação | Onde é detectada | O que o usuário vê | Teste |
+|---|---|---|---|
+| Arquivo inexistente, vazio, extensão errada ou maior que o limite | `acquisition/validacao.py` | erro explicando o problema | `test_aquisicao.py` |
+| Vídeo corrompido, sem frames ou com resolução menor que 320 × 240 | `acquisition/fontes.py` | erro na prévia, sem travar | `test_aquisicao.py`, `test_erros.py` |
+| FPS ausente ou absurdo (0, NaN, > 240) | `validacao.fps_valido` | usa 30 fps e marca "(estimado)" | `test_aquisicao.py` |
+| Webcam ausente ou ocupada | `fontes.abrir_webcam` | "Não foi possível acessar a câmera…" | `test_erros.py` |
+| URL inválida ou inacessível | `fontes.validar_url` / `abrir_url` (timeout de 8 s) | erro com o motivo | `test_aquisicao.py` |
+| Câmera desconectada ou stream encerrado no meio | `SessaoAnalise.passo` | aviso, e os resultados até ali ficam disponíveis | `test_erros.py` |
+| Nenhum veículo detectado | `AnalisadorFluxo.sem_deteccoes` | "Nenhum veículo detectado — tente reduzir o limiar de confiança." | `test_erros.py` |
+| ROI com menos de 3 pontos, fora do frame ou sem área | `geometry/roi.validar_roi` | erro na prévia; a análise não começa | `test_geometria.py`, `test_aplicacao.py` |
+| Linha de contagem com os dois pontos iguais | `ContadorLinha` | erro na prévia | `test_contagem.py` |
+| Homografia degenerada (pontos fora de ordem, cruzados, alinhados ou medidas ≤ 0) | `geometry/homografia.validar_quadrilatero` | aviso: só a **velocidade** é desativada, a contagem continua | `test_geometria.py`, `test_erros.py` |
+| Pesos sem internet na primeira execução | `DetectorYOLO._carregar` | link para baixar manualmente e a pasta onde salvar | `test_detector_yolo.py`, `test_erros.py` |
+| Pesos corrompidos | `DetectorYOLO._carregar` | orienta a apagar o arquivo para baixar de novo | `test_detector_yolo.py` |
+| Erro inesperado no meio da análise (ex.: falta de memória) | `SessaoAnalise.passo` → `ErroAnalise` | mensagem com o frame do erro; a sessão é encerrada, o vídeo parcial e a contagem ficam disponíveis | `test_erros.py` |
+| Falha ao gravar o MP4 (disco cheio, sem permissão, sem codec) | `SessaoAnalise._gravar` | aviso; a análise continua sem o vídeo | `test_erros.py` |
+| Contagem manual ou anotação YOLO malformada (no `evaluate.py`) | `metrics/anotacoes.py` | aviso no relatório; a parte inválida é ignorada | `test_metricas.py`, `test_avaliacao.py` |

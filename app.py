@@ -33,6 +33,7 @@ from src.aplicacao.relatorios import (
     serie_contagem,
 )
 from src.aplicacao.sessao import (
+    ErroAnalise,
     SessaoAnalise,
     analisar_e_compor_imagem,
     codificar_png,
@@ -369,7 +370,10 @@ def tela_video(sessao: SessaoAnalise) -> None:
         atualizar_tudo()
 
     while ss.rodando:
-        passo = sessao.passo()
+        try:
+            passo = sessao.passo()
+        except ErroAnalise:
+            passo = None  # a sessão já registrou o erro; ele aparece em resultados_finais
         if passo is None:
             ss.rodando = False
             st.rerun()  # fim do vídeo: redesenha a barra lateral e mostra os resultados
@@ -387,6 +391,12 @@ def tela_video(sessao: SessaoAnalise) -> None:
 def resultados_finais(sessao: SessaoAnalise) -> None:
     st.divider()
     st.subheader("Resultado da análise")
+    if sessao.erro:
+        st.error(sessao.erro)
+    elif sessao.ao_vivo and sessao.fonte_terminou:
+        st.info("A câmera ou a transmissão parou de enviar imagens (desconectada ou encerrada).")
+    for aviso in sessao.avisos:
+        st.warning(aviso)
     if sessao.analisador.sem_deteccoes:
         st.warning(MSG_SEM_DETECCOES)
     c1, c2 = st.columns([1, 1])
@@ -446,6 +456,10 @@ def tela_previa(fonte: FonteEscolhida | None, cfg: AppConfig) -> None:
             imagem = decodificar_imagem(fonte.imagem_bytes or b"", fonte.nome, cfg.aquisicao)
     except ErroEntrada as erro:
         st.error(str(erro))
+        return
+    except Exception:  # ex.: arquivo apagado entre a escolha e a prévia
+        logger.exception("Falha ao gerar a prévia de %s", fonte.nome)
+        st.error("Não foi possível abrir a prévia desta fonte. Veja o terminal para detalhes.")
         return
     if imagem is None:
         st.info(f"Fonte selecionada: **{fonte.nome}**. Clique em **Analisar** para começar.")

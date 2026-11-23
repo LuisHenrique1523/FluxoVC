@@ -44,6 +44,10 @@ PASTA_VIDEOS: Path = OUTPUTS_DIR / "videos"
 _PASTA_PADRAO = object()  # sentinela: usa PASTA_VIDEOS no momento da chamada
 
 
+class ErroAnalise(RuntimeError):
+    """Falha inesperada no meio da análise (a sessão já foi encerrada e o vídeo salvo)."""
+
+
 def config_da_sessao(cfg: AppConfig) -> AppConfig:
     """Cópia da configuração: compartilha os parâmetros "ao vivo" e congela a geometria."""
     return AppConfig(
@@ -104,33 +108,71 @@ class SessaoAnalise:
         self.ultimo_preproc: ResultadoPreproc | None = None
         self.caminho_video: Path | None = None
         self.encerrada = False
+        self.fonte_terminou = False     # True = a fonte acabou (fim do arquivo ou câmera desconectada)
+        self.erro: str | None = None    # mensagem da falha que interrompeu a análise
+        self.avisos: list[str] = []     # problemas não fatais (ex.: gravação do vídeo)
         self._relogio_inicio: float | None = None
         self._relogio_fim: float | None = None
 
     # ------------------------------------------------------------------
     def passo(self) -> PassoAnalise | None:
-        """Processa o próximo frame. Devolve ``None`` quando a fonte acaba (e encerra)."""
+        """Processa o próximo frame. Devolve ``None`` quando a fonte acaba (e encerra).
+
+        Raises:
+            ErroAnalise: falha inesperada ao ler, analisar ou desenhar o frame. A
+                sessão é encerrada antes (fonte liberada, vídeo parcial salvo), e o
+                que já foi contado continua disponível.
+        """
         if self.encerrada:
             return None
         if self._relogio_inicio is None:
             self._relogio_inicio = time.perf_counter()
-        frame = self.fonte.ler_frame()
-        if frame is None:
+        try:
+            frame = self.fonte.ler_frame()
+            if frame is None:
+                self.fonte_terminou = True
+                self.finalizar()
+                return None
+            resultado = self.analisador.processar(frame)
+            final = self.compositor.compor(
+                frame.imagem, resultado, self.analisador.contador, self.analisador.historico
+            )
+        except Exception as erro:
+            logger.exception("Falha ao processar o frame %d", self.fonte.frames_lidos)
+            self.erro = (
+                f"A análise foi interrompida no frame {self.fonte.frames_lidos} por um erro "
+                f"inesperado ({type(erro).__name__}: {erro}). O que já foi contado foi mantido."
+            )
             self.finalizar()
-            return None
-
-        resultado = self.analisador.processar(frame)
-        final = self.compositor.compor(
-            frame.imagem, resultado, self.analisador.contador, self.analisador.historico
-        )
-        if self.gravador is not None:
-            self.gravador.escrever(final)
+            raise ErroAnalise(self.erro) from erro
+        self._gravar(final)
         if resultado.processado:
             self.ultimo_preproc = resultado.preproc
             self.tempos.append({**resultado.tempos_ms, "desenho": self.compositor.tempo_desenho_ms})
         self._relogio_fim = time.perf_counter()
         self.ultimo_passo = PassoAnalise(frame, resultado, final)
         return self.ultimo_passo
+
+    def _gravar(self, imagem: np.ndarray) -> None:
+        """Grava o frame no MP4. Se a gravação falhar, a análise continua sem o vídeo."""
+        if self.gravador is None:
+            return
+        try:
+            self.gravador.escrever(imagem)
+        except (OSError, RuntimeError, cv2.error) as erro:
+            aviso = f"O vídeo processado não será salvo: {erro}"
+            logger.warning(aviso)
+            self.avisos.append(aviso)
+            try:
+                self.gravador.fechar()
+            except Exception:  # pragma: no cover - só limpeza
+                pass
+            self.gravador = None
+
+    @property
+    def ao_vivo(self) -> bool:
+        """Webcam ou stream (sem fim previsto)."""
+        return bool(self.info.ao_vivo)
 
     def finalizar(self) -> None:
         """Libera a fonte e fecha o vídeo gravado (pode ser chamado mais de uma vez)."""
