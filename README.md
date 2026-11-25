@@ -104,7 +104,8 @@ streamlit run app.py
 O navegador abre em <http://localhost:8501>.
 
 1. Na barra lateral, escolha a **fonte**: vídeo de demonstração, envio de vídeo, webcam, URL ou
-   imagem única.
+   imagem única. Vídeos de trânsito com licença livre para analisar podem ser baixados no
+   [Pexels](https://www.pexels.com/search/videos/traffic/) e enviados pela opção **Enviar vídeo**.
 2. A **prévia** mostra a ROI (ciano), a linha de contagem (amarelo, lados A e B) e a calibração
    (magenta). Para mudar, use **🖱️ Marcar na imagem com o mouse**, acima da prévia, e clique:
    - **📏 Linha de contagem:** 2 cliques, o início (A) e o fim (B), atravessando a pista;
@@ -117,7 +118,7 @@ O navegador abre em <http://localhost:8501>.
    barra lateral são preenchidos sozinhos e continuam disponíveis para ajuste fino.
 3. Clique em **▶️ Analisar**. Ao final, baixe os eventos, o resumo e o vídeo processado.
 
-![Marcando a ROI com o mouse](docs/img/interface_marcacao.png)
+![Prévia com a ROI, a linha de contagem e a calibração marcadas num vídeo real](docs/img/interface_marcacao.png)
 
 ### Outros comandos
 
