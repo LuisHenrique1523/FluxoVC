@@ -130,6 +130,21 @@ python scripts/gerar_figuras.py          # figuras de docs/computacao_grafica.md
 python scripts/avaliar_vlm.py --video <vídeo> --frames 3   # 10 casos de teste do VLM
 ```
 
+### Deploy no Render
+
+O repositório traz um [Dockerfile](Dockerfile) e um blueprint [render.yaml](render.yaml).
+No [Render](https://render.com), use **New → Blueprint** e escolha este repositório, ou abra
+<https://render.com/deploy?repo=https://github.com/LuisHenrique1523/FluxoVC>.
+
+- A imagem instala o PyTorch **só CPU** e baixa o `yolo11n.pt` no build
+  ([requirements-deploy.txt](requirements-deploy.txt) deixa de fora o VLM local e o pytest).
+- No servidor não há **webcam**: use o envio de vídeo, uma URL ou uma imagem.
+- O botão **Descrever cena** usa a API do Claude se a variável `ANTHROPIC_API_KEY` for definida no
+  painel do Render; sem ela, aparece só um aviso.
+- O plano gratuito tem 512 MB de RAM e CPU compartilhada: a análise é lenta e o serviço "dorme"
+  após 15 min sem acesso. Se o processo for encerrado por falta de memória, troque `plan` para
+  `standard` no `render.yaml`.
+
 ## Arquitetura
 
 ```mermaid

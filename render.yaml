@@ -1,0 +1,14 @@
+# Blueprint do Render: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: fluxovc
+    runtime: docker
+    plan: free            # 512 MB de RAM; se faltar memória, troque para "standard" (2 GB)
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /_stcore/health
+    autoDeploy: true
+    envVars:
+      - key: FLUXOVC_VLM_BACKEND
+        value: claude
+      - key: ANTHROPIC_API_KEY   # opcional: só para o botão "Descrever cena"
+        sync: false

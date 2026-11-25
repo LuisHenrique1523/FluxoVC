@@ -1,0 +1,16 @@
+# FluxoVC — dependências para o deploy (Render, Docker, Linux, CPU).
+# O torch/torchvision CPU são instalados antes, pelo Dockerfile, a partir do índice do PyTorch.
+# Fica de fora o que é pesado e opcional: transformers (VLM local) e pytest.
+
+opencv-python==5.1.0.95
+numpy==2.5.5
+pillow==13.0.0
+ultralytics==8.4.216
+lap==0.5.14
+streamlit==1.67.0
+streamlit-image-coordinates==0.4.1
+pandas==3.1.1
+matplotlib==3.11.2
+psutil==7.2.2
+python-dotenv==1.2.4
+anthropic==2.12.0
