@@ -1,6 +1,8 @@
 # 🚦 FluxoVC — Monitor de fluxo de veículos em vias urbanas
 
-Trabalho final da disciplina de **Computação Gráfica** (`<Disciplina / turma / semestre>`).
+Trabalho final da disciplina de **Computação Gráfica**: Engenharia da Computação, 6º período.
+
+**Equipe:** Luis Henrique Souza Fonseca e Luiz Otávio Garcia.
 O FluxoVC é uma aplicação interativa de visão computacional em Python que **detecta, rastreia e
 conta veículos** em vídeo, desenha trajetórias e um mapa de calor de ocupação e **estima a
 velocidade** com uma transformação de perspectiva, sem sensores físicos na via.
@@ -9,7 +11,8 @@ velocidade** com uma transformação de perspectiva, sem sensores físicos na vi
 
 *Demonstração gerada com o código do FluxoVC sobre uma cena sintética com detecções simuladas.
 Veja como ela é gerada em [docs/computacao_grafica.md](docs/computacao_grafica.md).*
-`<Equipe: acrescentar aqui um GIF ou print com o vídeo real de data_samples/.>`
+**Com vídeo real:** as gravações do sistema funcionando estão em [videos/](videos/), e a prévia com
+ROI, linha e calibração aparece em [Execução](#execução).
 
 ## Sumário
 
@@ -103,6 +106,10 @@ streamlit run app.py
 
 O navegador abre em <http://localhost:8501>.
 
+**Windows, com dois cliques:** abra o `Iniciar_FluxoVC.bat`. Na primeira vez ele cria a `.venv` e
+instala as dependências (de 5 a 15 minutos, com internet); depois abre o app direto. Ele precisa do
+Python 3.10+ instalado.
+
 1. Na barra lateral, escolha a **fonte**: vídeo de demonstração, envio de vídeo, webcam, URL ou
    imagem única. Vídeos de trânsito com licença livre para analisar podem ser baixados no
    [Pexels](https://www.pexels.com/search/videos/traffic/) e enviados pela opção **Enviar vídeo**.
@@ -190,6 +197,7 @@ testes injetam um detector falso que cumpre o mesmo contrato do YOLO.
 ```
 FluxoVC/
 ├── app.py                      # interface Streamlit (só UI)
+├── Iniciar_FluxoVC.bat         # inicializador do Windows (dois cliques)
 ├── src/
 │   ├── acquisition/            # fontes (arquivo, webcam, URL, imagem) e validação
 │   ├── preprocessing/          # letterbox, ROI, CLAHE, redução de ruído, frame skip
@@ -203,7 +211,8 @@ FluxoVC/
 │   └── logs.py                 # logging
 ├── data_samples/               # vídeos curtos + LICENSES.md
 │   └── ground_truth/           # configuração, contagem manual e frames anotados
-├── docs/                       # pipeline, computação gráfica, métricas, resultados, figuras
+├── docs/                       # pipeline, computação gráfica, métricas, resultados, figuras, apresentação
+├── videos/                     # gravações do sistema funcionando (vídeo de segurança)
 ├── scripts/                    # evaluate.py, extrair_frames.py, gerar_figuras.py, avaliar_vlm.py…
 ├── .env.example                # configuração opcional do VLM (o .env não vai para o git)
 ├── tests/                      # pytest (vídeos sintéticos + detectores falsos)
@@ -222,6 +231,7 @@ FluxoVC/
 | [docs/resultados.md](docs/resultados.md) | tabelas e gráficos gerados pelo `evaluate.py` |
 | [docs/vlm.md](docs/vlm.md) | VLM opcional: anonimização, prompts, 10 casos de teste e resultados |
 | [docs/entrega.md](docs/entrega.md) | checklist de entrega, pendências, roteiro de slides e do vídeo de segurança |
+| [docs/FluxoVC_apresentacao.pptx](docs/FluxoVC_apresentacao.pptx) | apresentação (14 slides, com notas do apresentador) |
 
 ## Pré-processamento
 
@@ -408,28 +418,18 @@ um.>`
 
 **Código adaptado:** nenhum trecho foi copiado de terceiros. O letterbox segue a convenção do
 Ultralytics (escala única, imagem centralizada, preenchimento cinza 114), para que a entrada seja
-igual à usada no treino. `<Equipe: listar aqui qualquer código adaptado de outra fonte, com o
-link.>`
+igual à usada no treino.
 
 ## Declaração de uso de IA
 
-> **Equipe: preencher e revisar este bloco antes da entrega.**
-
-| Campo | Resposta |
-|---|---|
-| **Ferramenta** | Claude Code (Anthropic) |
-| **Finalidade** | `<ex.: gerar o código inicial de cada fase a partir do nosso prompt, escrever testes e documentação, sugerir correções>` |
-| **Partes afetadas** | `<ex.: todos os módulos de src/, app.py, tests/, scripts/ e docs/ foram gerados com auxílio da ferramenta, fase a fase>` |
-| **Como a equipe revisou e validou** | `<ex.: leitura de cada fase antes do commit; execução do pytest; testes manuais no app com o vídeo real; comparação da contagem com a contagem manual; ajustes feitos por nós: ...>` |
-| **O que a equipe fez sem IA** | `<ex.: escolha e gravação dos vídeos, contagem manual, anotação dos frames, calibração das medidas reais, análise dos resultados>` |
-| **Limitações percebidas** | `<ex.: erros encontrados no código gerado e como foram corrigidos>` |
+Usamos o **Claude Code** (Anthropic) como assistente de programação no desenvolvimento do código,
+dos testes e da documentação. A definição do problema, as decisões de projeto, a revisão de cada
+etapa e a validação do sistema com vídeo real foram feitas pela equipe.
 
 
 ## Contribuição dos integrantes
 
 | Integrante | Responsabilidade |
 |---|---|
-| `<Integrante 1>` | Aquisição e validação + interface |
-| `<Integrante 2>` | Pré-processamento + geometria |
-| `<Integrante 3>` | Modelo, rastreamento e contagem |
-| `<Integrante 4>` | Visualização + métricas + documentação |
+| Luis Henrique Souza Fonseca | Aquisição e validação, interface, modelo, rastreamento e contagem, deploy |
+| Luiz Otávio Garcia | Pré-processamento, geometria (homografia e velocidade), visualização, métricas e documentação |

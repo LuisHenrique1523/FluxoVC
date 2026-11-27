@@ -52,19 +52,19 @@ contribuição do README (I1 a I4).
 
 | # | Slide | Conteúdo | Visual | Quem | Tempo |
 |---|---|---|---|---|---|
-| 1 | **FluxoVC** | Título, equipe, disciplina; frase do problema: "contar veículos sem sensores físicos" | GIF `docs/img/demo.gif` (ou do vídeo real) | I1 | 0:30 |
-| 2 | **Problema e público** | Por que contar (planejamento, semáforos, pesquisa); custo de laços indutivos e radares; público: gestores, pesquisadores | Foto de uma via (do vídeo) | I1 | 1:00 |
-| 3 | **Pipeline** | Aquisição → validação → pré-processamento → YOLO + ByteTrack → letterbox inverso → trajetórias, contagem e velocidade → camadas → interface | Diagrama Mermaid do README | I1 | 1:00 |
-| 4 | **Pré-processamento** | Letterbox, CLAHE no canal L, filtro bilateral, ROI e frame skip: o que cada um resolve e por que nessa ordem | `11_preprocessamento.png` | I2 | 1:15 |
-| 5 | **Modelo** | YOLO11n × YOLO11s, COCO (classes 2, 3, 5 e 7), ByteTrack; pessoas ignoradas; roda em CPU | Tabela n × s (FPS) | I3 | 1:00 |
-| 6 | **Coordenadas** | Modelo → original → tela; a conta do letterbox inverso com números reais; teste de ida e volta ≤ 1 px | `01_coordenadas.png` e `02_letterbox.png` | I2 | 1:15 |
-| 7 | **Contagem e velocidade** | Produto vetorial e segmento; contar cada ID uma vez; homografia de 4 pontos; velocidade real × estimada (erro de até 5 %); o bug da velocidade subestimada encontrado com vídeo real | `03_homografia.png` e a tabela de velocidades | I3 | 1:30 |
-| 8 | **Gráficos em camadas** | Ordem das camadas, `addWeighted` com máscara, mapa de calor com colormap, EMA (tremor × atraso) | `04_camadas.png`, `05_mapa_calor.png`, `08_ema.png` | I4 | 1:30 |
-| 9 | **Interface** | Fontes, parâmetros ao vivo × congelados, prévia, gráfico, eventos, downloads; tratamento de erros | `interface_previa.png` ou demonstração ao vivo | I1 | 1:30 |
-| 10 | **Métricas** | Erro de contagem e MAE, P/R/F1 com IoU ≥ 0,5, estabilidade do rastreamento, FPS e latência por etapa | Tabelas de `docs/resultados.md` | I4 | 1:15 |
-| 11 | **Acertos e erros** | 2 acertos e 2 erros reais; frame skip × suavização; limitações (oclusão, noite, calibração) | Prints do vídeo real | I3 | 1:00 |
-| 12 | **Evolução** | 9 fases em commits; bugs que os testes pegaram; desempenho (composição de 37 → 22 ms; VLM de 37 → 3 s por resposta) | Linha do tempo dos commits | I4 | 0:45 |
-| 13 | **VLM** | "Descrever cena" com frame anonimizado; local × API; 10 casos: 75 % corretas, 20 % alucinadas | `vlm_anonimizado.jpg` e tabela de resultados | I2 | 1:00 |
+| 1 | **FluxoVC** | Título, equipe, disciplina; frase do problema: "contar veículos sem sensores físicos" | GIF `docs/img/demo.gif` (ou do vídeo real) | Luis | 0:30 |
+| 2 | **Problema e público** | Por que contar (planejamento, semáforos, pesquisa); custo de laços indutivos e radares; público: gestores, pesquisadores | Foto de uma via (do vídeo) | Luis | 1:00 |
+| 3 | **Pipeline** | Aquisição → validação → pré-processamento → YOLO + ByteTrack → letterbox inverso → trajetórias, contagem e velocidade → camadas → interface | Diagrama Mermaid do README | Luis | 1:00 |
+| 4 | **Pré-processamento** | Letterbox, CLAHE no canal L, filtro bilateral, ROI e frame skip: o que cada um resolve e por que nessa ordem | `11_preprocessamento.png` | Luiz Otávio | 1:15 |
+| 5 | **Modelo** | YOLO11n × YOLO11s, COCO (classes 2, 3, 5 e 7), ByteTrack; pessoas ignoradas; roda em CPU | Tabela n × s (FPS) | Luis | 1:00 |
+| 6 | **Coordenadas** | Modelo → original → tela; a conta do letterbox inverso com números reais; teste de ida e volta ≤ 1 px | `01_coordenadas.png` e `02_letterbox.png` | Luiz Otávio | 1:15 |
+| 7 | **Contagem e velocidade** | Produto vetorial e segmento; contar cada ID uma vez; homografia de 4 pontos; velocidade real × estimada (erro de até 5 %); o bug da velocidade subestimada encontrado com vídeo real | `03_homografia.png` e a tabela de velocidades | Luis | 1:30 |
+| 8 | **Gráficos em camadas** | Ordem das camadas, `addWeighted` com máscara, mapa de calor com colormap, EMA (tremor × atraso) | `04_camadas.png`, `05_mapa_calor.png`, `08_ema.png` | Luiz Otávio | 1:30 |
+| 9 | **Interface** | Fontes, parâmetros ao vivo × congelados, prévia, gráfico, eventos, downloads; tratamento de erros | `interface_previa.png` ou demonstração ao vivo | Luis | 1:30 |
+| 10 | **Métricas** | Erro de contagem e MAE, P/R/F1 com IoU ≥ 0,5, estabilidade do rastreamento, FPS e latência por etapa | Tabelas de `docs/resultados.md` | Luiz Otávio | 1:15 |
+| 11 | **Acertos e erros** | 2 acertos e 2 erros reais; frame skip × suavização; limitações (oclusão, noite, calibração) | Prints do vídeo real | Luis | 1:00 |
+| 12 | **Evolução** | 9 fases em commits; bugs que os testes pegaram; desempenho (composição de 37 → 22 ms; VLM de 37 → 3 s por resposta) | Linha do tempo dos commits | Luiz Otávio | 0:45 |
+| 13 | **VLM** | "Descrever cena" com frame anonimizado; local × API; 10 casos: 75 % corretas, 20 % alucinadas | `vlm_anonimizado.jpg` e tabela de resultados | Luiz Otávio | 1:00 |
 | 14 | **Contribuições e créditos** | Quem fez o quê; Ultralytics (AGPL-3.0), COCO, SmolVLM, vídeos (licenças); declaração de uso de IA | Tabelas do README | todos | 0:30 |
 
 **Exemplos para o slide 12 (bugs que os testes pegaram):**
